@@ -264,7 +264,8 @@ select { padding-right: 8px; cursor: pointer; }
   overflow: hidden;
   isolation: isolate;
 }
-.map-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.map-wrap canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+.map-wrap.is-pixel canvas { image-rendering: pixelated; }
 
 .hl-banner {
   position: absolute;
@@ -535,8 +536,9 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
 .story-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
 .story-frame {
   --tint: var(--tint-1);
-  width: min(100%, calc((100vh - var(--topbar-h) - 90px) * 9 / 16));
-  min-width: 300px;
+  /* --story-h is the room left under the controls, set by ui.js; the frame keeps 9:16 inside it */
+  width: min(100%, calc(var(--story-h, calc(100vh - var(--topbar-h) - 90px)) * 9 / 16));
+  min-width: 280px;
   max-width: 100%;
   aspect-ratio: 9 / 16;
   background: var(--bg-raise);
@@ -545,27 +547,29 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 16px 16px 14px;
-  gap: 12px;
+  padding: 12px 12px 10px;
+  gap: 7px;
   container-type: inline-size;
 }
-.story-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.story-top .brand-name { font-size: 6cqw; }
-.story-top .mono { font-size: 3.4cqw; color: var(--text-dim); }
+.story-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex: none; }
+.story-top .brand-name { font-size: 4.8cqw; line-height: 1.1; }
+.story-top .mono { font-size: 3.1cqw; color: var(--text-dim); }
+/* the map is the hero: it takes what the text below leaves, about 60% of the frame */
 .story-map { flex: 1 1 0; min-height: 0; display: flex; }
 .story-map .map-wrap { aspect-ratio: auto; height: 100%; max-height: none; min-height: 0; border-radius: 12px; }
 .story-map .hl-banner { display: none !important; }
-.story-caption { flex: none; min-height: calc(7cqw * 1.08 * 3 + 4.2cqw); display: flex; flex-direction: column; justify-content: center; }
-.story-caption .kicker { color: var(--signal); font-size: 3.1cqw; }
-.story-cap { font-family: var(--font-display); font-weight: 700; font-size: 7cqw; line-height: 1.08; letter-spacing: -0.02em; margin: 6px 0 0; font-variation-settings: "opsz" 96; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
-.story-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.smeter { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--tint); border-radius: 10px; padding: 8px 9px; min-width: 0; }
-.smeter .l { font-family: var(--font-mono); font-size: 2.7cqw; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }
-.smeter .v { font-family: var(--font-mono); font-size: 5.6cqw; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.15; }
-.smeter svg { width: 100%; height: 22px; display: block; margin-top: 3px; }
-.story-stamp { border-top: 1px solid var(--line); padding-top: 9px; font-family: var(--font-mono); font-size: 2.7cqw; color: var(--text-dim); line-height: 1.5; }
-.story-credit { font-family: var(--font-mono); font-size: 2.4cqw; color: var(--text-faint); margin-top: -6px; }
-.story-stamp strong { color: var(--text); font-weight: 600; display: block; font-size: 3.2cqw; margin-top: 3px; letter-spacing: .02em; }
+.story-caption { flex: none; height: calc(5.2cqw * 1.14 * 3 + 2.8cqw * 1.3 + 0.6cqw + 3px); display: flex; flex-direction: column; justify-content: flex-start; min-width: 0; }
+.story-caption .kicker { color: var(--signal); font-size: 2.8cqw; line-height: 1.3; flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.story-cap { font-family: var(--font-display); font-weight: 700; font-size: 5.2cqw; line-height: 1.14; letter-spacing: -0.015em; margin: 0.6cqw 0 0; flex: none; font-variation-settings: "opsz" 96; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.story-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.6cqw; flex: none; }
+.smeter { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--tint); border-radius: 10px; padding: 1.4cqw 1.8cqw 1.6cqw; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; column-gap: 1.6cqw; }
+.smeter .l { grid-column: 1 / -1; font-family: var(--font-mono); font-size: 2.3cqw; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.smeter .v { font-family: var(--font-mono); font-size: 5.2cqw; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.smeter svg { width: 100%; height: 4.6cqw; display: block; margin-bottom: 0.6cqw; }
+.story-stamp { flex: none; border-top: 1px solid var(--line); padding-top: 1.6cqw; font-family: var(--font-mono); font-size: max(8px, 2.3cqw); color: var(--text-dim); line-height: 1.35; min-width: 0; }
+.story-stamp > div { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.story-stamp strong { color: var(--text); font-weight: 600; display: block; font-size: 2.9cqw; margin-top: 0.4cqw; letter-spacing: .02em; }
+.story-credit { flex: none; font-family: var(--font-mono); font-size: max(8.5px, 2.3cqw); line-height: 1.3; color: var(--text-faint); margin-top: -0.6cqw; white-space: nowrap; }
 
 /* ---------- footer ---------- */
 .foot { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--text-faint); display: flex; flex-wrap: wrap; gap: 4px 14px; }
@@ -605,7 +609,9 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
   .meter { grid-template-columns: 74px 1fr 58px 14px; gap: 6px; }
   .q-opts { grid-template-columns: 1fr; }
   .charts { grid-template-columns: 1fr; }
-  .story-frame { min-width: 0; width: 100%; }
+  .story-frame { min-width: 0; width: min(100%, calc(var(--story-h, 100vh) * 9 / 16)); }
+  /* the pixel world needs a taller stage on phones to fit at a whole-number scale */
+  #mapHome .map-wrap.is-pixel { aspect-ratio: 4 / 5; max-height: none; }
   .hl-banner { top: 10px; padding: 8px 11px 9px; }
   .hl-text { font-size: 15px; }
   .hl-banner .kicker { font-size: 10px; }
@@ -718,7 +724,7 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
 
   <section class="story" id="story" hidden aria-label="Story mode">
     <div class="story-controls">
-      <span class="flabel" id="storyPickLabel">Meters for</span>
+      <span class="flabel" id="storyPickLabel">Story nation</span>
       <div class="nation-pick" id="storyPick" role="group" aria-labelledby="storyPickLabel" style="margin:0"></div>
       <button class="btn btn-sm" type="button" id="storyExit">Exit story mode</button>
     </div>

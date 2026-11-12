@@ -401,6 +401,8 @@
             systemLabel: systemLabel,
             myUserId: function () { return S.store.info && S.store.info.userId; },
             reduced: reduced,
+            // Story mode frames the chosen story nation's town
+            focus: function () { var n = S.story && nations()[S.storyNation]; return n ? n.id : null; },
             vector: MAP
           });
         } catch (e) { console.warn('[aination ui] pixel map failed', e); self.r = null; return; }
@@ -416,6 +418,7 @@
       $('#lgChart').hidden = on;
       $('#lgPixel').hidden = !on;
       $('#pixCredit').hidden = !on;
+      MAP.wrap.classList.toggle('is-pixel', on);
       var sc = $('#storyCredit');
       if (sc) sc.hidden = !on;
       MAP.cv.setAttribute('aria-label', on ? 'Pixel map of nations. Each island is a nation; each person is a citizen.' : 'Map of nations. Each dot is a citizen.');
@@ -456,14 +459,22 @@
       };
       this.needs = true;
     },
+    // The canvas covers the map's inner box in whole device pixels, starting on a device pixel, so the
+    // browser never rescales it (a rescale would blur the pixel world and the chart alike).
     resize: function () {
-      var r = this.wrap.getBoundingClientRect();
-      var W = Math.max(10, Math.round(r.width)), H = Math.max(10, Math.round(r.height));
+      var wr = this.wrap, r = wr.getBoundingClientRect(), bl = wr.clientLeft || 0, bt = wr.clientTop || 0;
       var dpr = Math.min(2.5, window.devicePixelRatio || 1);
-      if (W === this.W && H === this.H && dpr === this.dpr) return;
-      this.W = W; this.H = H; this.dpr = dpr;
-      this.cv.width = Math.round(W * dpr);
-      this.cv.height = Math.round(H * dpr);
+      var x0 = (r.left + (window.scrollX || 0) + bl) * dpr, y0 = (r.top + (window.scrollY || 0) + bt) * dpr;
+      var ix = Math.ceil(x0 - 0.02), iy = Math.ceil(y0 - 0.02);
+      var dw = Math.max(10, Math.floor(x0 + (r.width - 2 * bl) * dpr + 0.02) - ix);
+      var dh = Math.max(10, Math.floor(y0 + (r.height - 2 * bt) * dpr + 0.02) - iy);
+      var ox = (ix - x0) / dpr, oy = (iy - y0) / dpr;
+      if (dw === this.cv.width && dh === this.cv.height && dpr === this.dpr && ox === this.offX && oy === this.offY) return;
+      this.W = dw / dpr; this.H = dh / dpr; this.dpr = dpr; this.offX = ox; this.offY = oy;
+      var st = this.cv.style;
+      st.left = ox + 'px'; st.top = oy + 'px'; st.width = this.W + 'px'; st.height = this.H + 'px';
+      if (this.cv.width !== dw) this.cv.width = dw;
+      if (this.cv.height !== dh) this.cv.height = dh;
       this.L = null;
       this.needs = true;
       if (reduced()) this.draw(performance.now());
@@ -651,6 +662,8 @@
     loop: function (t) {
       this.raf = requestAnimationFrame(this.loop);
       if (reduced() || document.hidden) return;
+      // the map can move without resizing (text above it reflows); re-align now and then
+      if ((this.frameN = (this.frameN || 0) + 1) % 30 === 0) this.resize();
       this.draw(t);
     },
     draw: safe(function (now) {
@@ -1961,16 +1974,23 @@
     renderStoryPick();
     renderStory();
     renderStoryCaption();
+    sizeStory();
     MAP.L = null;
     MAP.resize();
     MAP.needs = true;
     if (reduced()) MAP.draw(performance.now());
   }
+  // Fit the whole 9:16 frame under the controls, so it can be screen-recorded without scrolling.
+  function sizeStory() {
+    if (!S.story) return;
+    var fr = $('#storyFrame'), top = fr.getBoundingClientRect().top + (window.scrollY || 0);
+    $('#story').style.setProperty('--story-h', Math.max(440, Math.floor(window.innerHeight - top - 14)) + 'px');
+  }
   function renderStoryPick() {
     var box = $('#storyPick');
     if (!box) return;
     clear(box);
-    box.appendChild(nationPicker(S.storyNation, function (i) { S.storyNation = i; LS.set('storyNation', i); renderStoryPick(); renderStory(); }, { byIndex: true, label: 'Nation for meters' }));
+    box.appendChild(nationPicker(S.storyNation, function (i) { S.storyNation = i; LS.set('storyNation', i); renderStoryPick(); renderStory(); MAP.needs = true; if (reduced()) MAP.draw(performance.now()); }, { byIndex: true, label: 'Story nation' }));
   }
   function renderStory() {
     if (!S.story || !S.world) return;
@@ -2032,6 +2052,7 @@
     $('#storyBtn').addEventListener('click', function () { setStory(!S.story); });
     $$('#mapModeSeg button').forEach(function (b) { b.addEventListener('click', function () { PIX.set(b.dataset.mode); }); });
     $('#storyExit').addEventListener('click', function () { setStory(false); $('#storyBtn').focus(); });
+    window.addEventListener('resize', function () { sizeStory(); });
     $$('#tabs .tab').forEach(function (b) {
       b.addEventListener('click', function () { selectTab(b.dataset.tab); });
       b.addEventListener('keydown', function (e) {

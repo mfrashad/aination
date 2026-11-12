@@ -25,6 +25,9 @@
   var TOWN_W = TW * TS, TOWN_H = (TH - 1) * TS;   // the island; local town coords start 16 px above it (LY)
   var LY = 16;
   var GX = 40, GY = 44, TOP = 30, MX = 10, BOT = 22;
+  var SIDE = 40;                           // world margin beside a column of towns: room for the boat channel
+  var SLACK = 8;                           // art px of outer margin a whole-world fit may crop
+  var LABEL_CSS = 36;                      // CSS px kept above each town for its label
   var COM_W = 8, COM_H = 7;                // commons islet in tiles
 
   function hash(s) {
@@ -128,6 +131,7 @@
     };
 
     // ---------------------------------------------------------------- layout
+    // Arrangements are rows of towns, top to bottom. A column (all rows of one) suits tall, narrow stages.
     function arrangements(n) {
       var out = [];
       if (n <= 1) out.push([1]);
@@ -135,49 +139,90 @@
       if (n === 3) out.push([3], [2, 1], [1, 2]);
       if (n === 4) out.push([4], [2, 2], [3, 1]);
       if (n >= 5) out.push([n], [3, n - 3], [2, n - 2 > 3 ? 3 : n - 2], [2, 2, n - 4]);
+      if (n >= 3) out.push(column(n));
       return out;
     }
-    function computeLayout(W, H, dpr, ns, commons) {
+    function column(n) { var r = []; for (var i = 0; i < n; i++) r.push(1); return r; }
+    function isColumn(rows) { return rows.length > 1 && rows.every(function (k) { return k === 1; }); }
+
+    // World size of one arrangement. Labels are drawn in CSS px, so the room kept above each row
+    // depends on the whole-number scale sc (device px per art px).
+    function measure(rows, cm, dpr, sc) {
+      var mx = isColumn(rows) ? SIDE : MX;
+      var rowW = rows.map(function (k) { return k * TOWN_W + (k - 1) * GX; });
+      var comRow = -1, cw = COM_W * TS, ch = COM_H * TS;
+      if (cm === 'inline') {
+        var mi = 0;
+        rows.forEach(function (k, i) { if (k < rows[mi]) mi = i; });
+        if (rows.length < 2 || rows[mi] === rows[0] && rows.every(function (k) { return k === rows[0]; })) return null;
+        comRow = mi; rowW[mi] += GX + cw;
+      }
+      if (cm === 'below-mid' && rows.length !== 1) return null;
+      var band = Math.ceil(LABEL_CSS * dpr / sc);
+      var top = Math.max(TOP, band), gy = Math.max(GY, band + 8);
+      var h = top + rows.length * TOWN_H + (rows.length - 1) * gy + BOT;
+      if (cm === 'row') h += ch + 34;
+      if (cm === 'below-mid') h += ch + 30 - BOT + 4;
+      return { rows: rows, cm: cm, comRow: comRow, rowW: rowW, w: Math.max.apply(null, rowW) + mx * 2, h: h, top: top, gy: gy };
+    }
+    // Largest whole-number scale at which the arrangement fits, or the fractional fit (< 1) when it cannot.
+    // The outer margins are open water, so a fit may crop up to SLACK art px of them.
+    function fits(m, devW, devH) { return Math.min(devW / (m.w - SLACK), devH / (m.h - SLACK)); }
+    function fitOf(rows, cm, devW, devH, dpr) {
+      var m = measure(rows, cm, dpr, 1);
+      if (!m) return null;
+      var f = fits(m, devW, devH);
+      if (f < 1) { m.fit = f; return m; }
+      var k = Math.floor(f);
+      for (;;) {
+        var m2 = measure(rows, cm, dpr, k + 1);
+        if (fits(m2, devW, devH) >= k + 1) { k++; m = m2; } else break;
+      }
+      if (k > 1) m = measure(rows, cm, dpr, k);
+      m.fit = k;
+      return m;
+    }
+    function bestArrangement(n, devW, devH, dpr, commons, only) {
       var best = null;
-      var devW = W * dpr, devH = H * dpr;
-      arrangements(ns.length).forEach(function (rows) {
+      (only ? [only] : arrangements(n)).forEach(function (rows) {
         // commons placement options: own row below, or inside the shortest row, or none
-        var opts = commons ? ['row', 'inline', 'below-mid'] : ['none'];
-        opts.forEach(function (cm) {
-          var rowW = rows.map(function (k) { return k * TOWN_W + (k - 1) * GX; });
-          var rowH = rows.map(function () { return TOWN_H; });
-          var comRow = -1, cw = COM_W * TS, ch = COM_H * TS;
-          if (cm === 'inline') {
-            var mi = 0;
-            rows.forEach(function (k, i) { if (k < rows[mi]) mi = i; });
-            if (rows.length < 2 || rows[mi] === rows[0] && rows.every(function (k) { return k === rows[0]; })) return;
-            comRow = mi; rowW[mi] += GX + cw;
-          }
-          if (cm === 'below-mid' && rows.length !== 1) return;
-          var w = Math.max.apply(null, rowW) + MX * 2;
-          // labels are drawn in CSS px, so the room kept for them above each row depends on the scale
-          function height(top, gy) {
-            var hh = top + rowH.reduce(function (a, b) { return a + b; }, 0) + (rows.length - 1) * gy + BOT;
-            if (cm === 'row') hh += ch + 34;
-            if (cm === 'below-mid') hh += ch + 30 - BOT + 4;
-            return hh;
-          }
-          var top = TOP, gy = GY, h = height(top, gy), s, sc;
-          for (var pass = 0; pass < 3; pass++) {
-            s = Math.min(devW / w, devH / h);
-            sc = s >= 1 ? Math.floor(s) : s;
-            top = Math.max(TOP, Math.ceil(36 * dpr / sc));
-            gy = Math.max(GY, Math.ceil(36 * dpr / sc) + 8);
-            h = height(top, gy);
-          }
-          s = Math.min(devW / w, devH / h);
-          sc = s >= 1 ? Math.floor(s) : s;
-          var score = sc * 1000 - (cm === 'row' ? 1 : 0) - rows.length * 0.1;
-          if (!best || score > best.score) best = { rows: rows, cm: cm, comRow: comRow, w: w, h: h, s: sc, score: score, rowW: rowW, top: top, gy: gy };
+        (commons ? ['row', 'inline', 'below-mid'] : ['none']).forEach(function (cm) {
+          var m = fitOf(rows, cm, devW, devH, dpr);
+          if (!m) return;
+          var score = m.fit * 1000 - (cm === 'row' ? 1 : 0) - rows.length * 0.1 - (isColumn(rows) && rows.length > 2 ? 0.5 : 0);
+          if (!best || score > best.score) { m.score = score; best = m; }
         });
       });
+      return best;
+    }
+    // The box the camera frames for one town: its label band, the island and the top of its jetty.
+    function townBox(P, band) { return { x: P.x - 8, y: P.y - band, w: TOWN_W + 16, h: band + TOWN_H + 14 }; }
+
+    // Modes: 'fit' shows the whole world at a whole-number scale (static, centred). 'camera' is used when
+    // the world cannot fit at 1 device px per art px: scale 1, and a camera that frames one town at a time.
+    // 'focus' (Story mode) frames one nation's town as large as a whole-number scale allows.
+    function computeLayout(W, H, dpr, ns, commons, focusId) {
+      var devW = Math.round(W * dpr), devH = Math.round(H * dpr);
+      var best = bestArrangement(ns.length, devW, devH, dpr, commons);
+      var mode = best.fit >= 1 ? 'fit' : 'camera', sc = best.fit >= 1 ? best.fit : 1, hero = null;
+      if (focusId && ns.length > 1 && ns.some(function (n) { return n.id === focusId; })) {
+        // the hero town's own whole-number scale; whole world wins only if it is at least as large
+        var kH = 1;
+        for (var k = 2; k < 12; k++) {
+          var band = Math.ceil(LABEL_CSS * dpr / k);
+          if ((TOWN_W + 16) * k <= devW && (band + TOWN_H + 14) * k <= devH) kH = k; else break;
+        }
+        if (mode !== 'fit' || best.fit < kH) {
+          var others = ns.filter(function (n) { return n.id !== focusId; }), hn = ns.filter(function (n) { return n.id === focusId; })[0];
+          others.splice(Math.floor(others.length / 2), 0, hn);
+          ns = others;
+          best = measure(column(ns.length), commons ? 'row' : 'none', dpr, kH);
+          mode = 'focus'; sc = kH; hero = focusId;
+        }
+      }
       // place
-      var L = { s: best.s, w: best.w, h: best.h, towns: {}, order: [], gy: best.gy };
+      var L = { s: sc, w: best.w, h: best.h, towns: {}, order: [], gy: best.gy, mode: mode, hero: hero, column: isColumn(best.rows),
+        band: Math.ceil(LABEL_CSS * dpr / sc), devW: devW, devH: devH };
       var y = best.top, idx = 0;
       best.rows.forEach(function (k, ri) {
         var x = Math.round((best.w - best.rowW[ri]) / 2);
@@ -199,12 +244,46 @@
       y -= best.gy;
       // the islet sits below the boat lane that runs under each row's jetties
       if (best.cm === 'row' || best.cm === 'below-mid') L.commons = { x: Math.round((best.w - COM_W * TS) / 2), y: y + 30, w: COM_W * TS, h: COM_H * TS };
-      // device-pixel placement
-      var s = L.s;
-      L.ox = Math.round((W * dpr - L.w * s) / 2);
-      L.oy = Math.round((H * dpr - L.h * s) / 2);
-      if (s >= 1) { L.ox = Math.round(L.ox); L.oy = Math.round(L.oy); }
+      // device-pixel placement (whole device px, so the integer-scaled copy stays crisp)
+      L.ox = Math.round((W * dpr - L.w * L.s) / 2);
+      L.oy = Math.round((H * dpr - L.h * L.s) / 2);
       return L;
+    }
+
+    // Per-frame camera for 'camera' and 'focus' modes: sets L.ox / L.oy in whole device px.
+    function frameCenter(L, id) {
+      var B = townBox(L.towns[id], L.band), cx = B.x + B.w / 2, cy = B.y + B.h / 2;
+      var vw = L.devW / L.s, vh = L.devH / L.s;
+      if (B.h > vh) cy = B.y + vh / 2;            // too tall: keep the label in view, crop the jetty
+      if (L.mode === 'camera') {
+        // stay inside the world where it is larger than the view
+        cx = L.w > vw ? clamp(cx, vw / 2, L.w - vw / 2) : L.w / 2;
+        cy = L.h > vh ? clamp(cy, Math.min(vh / 2, B.y + vh / 2), L.h - vh / 2) : L.h / 2;
+      }
+      return [cx, cy];
+    }
+    var CAM_HOLD = 6.5, CAM_PAN = 1.8;
+    function camera(L, now, still) {
+      if (L.mode === 'fit') return;
+      var c;
+      if (L.mode === 'focus') c = frameCenter(L, L.hero);
+      else {
+        var n = L.order.length, per = CAM_HOLD + CAM_PAN;
+        if (still || n < 2) { c = frameCenter(L, L.order[0]); L.camIdx = 0; }
+        else {
+          var t = now / 1000, i = Math.floor(t / per) % n, ph = t % per;
+          c = frameCenter(L, L.order[i]);
+          L.camIdx = i;
+          if (ph > CAM_HOLD) {
+            var e = (ph - CAM_HOLD) / CAM_PAN, d = frameCenter(L, L.order[(i + 1) % n]);
+            e = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2;
+            c = [c[0] + (d[0] - c[0]) * e, c[1] + (d[1] - c[1]) * e];
+            if (e > 0.5) L.camIdx = (i + 1) % n;
+          }
+        }
+      }
+      L.ox = Math.round(L.devW / 2 - c[0] * L.s);
+      L.oy = Math.round(L.devH / 2 - c[1] * L.s);
     }
 
     // ---------------------------------------------------------------- town construction
@@ -529,7 +608,11 @@
       var L = R.L, a = L.towns[fromId], b = L.towns[toId];
       var ax = a.x + 152, ay = a.y + TOWN_H + 15, bx = b.x + 152, by = b.y + TOWN_H + 15;
       var pts = [{ x: ax, y: ay }];
-      if (a.row === b.row) {
+      if (a.x === b.x && a.row !== b.row) {
+        // one column: out to the channel beside the islands, along it, and back in under the other jetty
+        var ch = a.x + TOWN_W + Math.min(SIDE, GX) / 2 + 4;
+        pts.push({ x: ch, y: ay }, { x: ch, y: by });
+      } else if (a.row === b.row) {
         pts.push({ x: bx, y: ay });
       } else {
         // channel beside the destination island, on the side facing the start
@@ -613,11 +696,12 @@
     function ensureLayout(W, H, dpr) {
       var ns = natList();
       var cfgW = (env.config() && env.config().world) || {};
-      var key = [W, H, dpr, ns.map(function (n) { return n.id + ':' + n.system; }).join(','), cfgW.commons !== false].join('|');
+      var focus = (env.focus && env.focus()) || '';
+      var key = [W, H, dpr, ns.map(function (n) { return n.id + ':' + n.system; }).join(','), cfgW.commons !== false, focus].join('|');
       if (key === R.layoutKey && R.L) return R.L;
       var oldL = R.L;
       R.layoutKey = key;
-      R.L = computeLayout(W, H, dpr, ns, cfgW.commons !== false);
+      R.L = computeLayout(W, H, dpr, ns, cfgW.commons !== false, focus);
       var towns = {};
       ns.forEach(function (n, i) {
         var prev = R.towns[n.id];
@@ -809,7 +893,8 @@
       });
       R.fx = keepFx;
 
-      // ---- blit to screen
+      // ---- blit to screen: whole-number scale, whole device px offsets, no smoothing
+      camera(L, now, still);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.globalAlpha = 1;
       ctx.fillStyle = tok.bg;
@@ -819,9 +904,10 @@
       ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
       ctx.globalAlpha = 1;
       var sc = L.s;
-      ctx.imageSmoothingEnabled = sc < 1;
-      if (sc < 1) ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(R.frame, 0, 0, L.w, L.h, L.ox, L.oy, Math.round(L.w * sc), Math.round(L.h * sc));
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(R.frame, 0, 0, L.w, L.h, L.ox, L.oy, L.w * sc, L.h * sc);
+      var ds = ctx.canvas.dataset;
+      if (ds && (ds.pxScale !== String(sc) || ds.pxMode !== L.mode)) { ds.pxScale = String(sc); ds.pxMode = L.mode; }
       // strike flash
       R.fx.forEach(function (fx) {
         var t = now - fx.t0;
@@ -831,24 +917,81 @@
       // ---- overlays in CSS px
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       function toCss(wx, wy) { return [(L.ox + wx * sc) / dpr, (L.oy + wy * sc) / dpr]; }
-      var k = sc / dpr;
-      // tension arcs reuse the vector renderer with island geometry
+      function cssRect(x, y, w, h) { var a = toCss(x, y); return [a[0], a[1], a[0] + w * sc / dpr, a[1] + h * sc / dpr]; }
+      function shown(q) {
+        var ix = Math.max(0, Math.min(q[2], W) - Math.max(q[0], 0)), iy = Math.max(0, Math.min(q[3], H) - Math.max(q[1], 0));
+        return ix * iy / Math.max(1, (q[2] - q[0]) * (q[3] - q[1]));
+      }
+      var k = sc / dpr, framed = L.mode !== 'fit';
+      var showCommons = !!(L.commons && cfgW.commons !== false);
+      // which towns are on screen (framed modes only; 'fit' shows all)
+      var onScreen = {}, chips = [], avoid = [];
+      s.nations.forEach(function (n) {
+        var P = L.towns[n.id];
+        if (P) onScreen[n.id] = !framed || shown(cssRect(P.x, P.y, TOWN_W, TOWN_H)) >= 0.5;
+      });
+      // labels first (measured), so the dial and the edge chips can keep clear of them
+      var labelBoxes = [];
+      s.nations.forEach(function (n, i) {
+        var P = L.towns[n.id];
+        if (!P || !onScreen[n.id]) return;
+        var lb = measureLabel(ctx, n, toCss(P.x + TOWN_W / 2, P.y), W, H, framed, n.id === L.hero);
+        labelBoxes.push({ n: n, i: i, b: lb });
+        avoid.push([lb.x - 4, lb.y - 4, lb.x + lb.w + 4, lb.y + lb.h + 4]);
+      });
+      var D = cfgW.escalation ? dialSpot(L, W, H, dpr, framed ? avoid : null) : null;
+      if (D) avoid.push([D.x - D.r - 6, D.y - D.r - 8, D.x + D.r + 6, D.y + 34]);
+      var stamp = L.mode !== 'focus', stampText = 'YEAR ' + num(s.year, 0) + ' · ROUND ' + num(s.round, 0);
+      if (stamp && framed) { ctx.font = '500 10px "IBM Plex Mono", monospace'; avoid.push([4, H - 24, 18 + ctx.measureText(stampText).width, H]); }
+      var comRect = showCommons ? cssRect(L.commons.x, L.commons.y, L.commons.w, L.commons.h) : null;
+      var comOn = showCommons && (!framed || shown(comRect) >= 0.5);
+      // edge chips for towns (and the commons) out of frame
+      if (framed) {
+        var want = [];
+        s.nations.forEach(function (n, i) {
+          var P = L.towns[n.id];
+          if (!P || onScreen[n.id]) return;
+          var c = toCss(P.x + TOWN_W / 2, P.y + TOWN_H / 2), m = n.metrics || {}, st = '';
+          if (n.alive === false) st = 'FALLEN';
+          else if (num(m.protestRate, 0) >= 8) st = 'PROTESTS ' + Math.round(m.protestRate) + '%';
+          want.push({ id: n.id, name: n.name || n.id, status: st, tint: n.alive === false ? tok.crit : tok.tints[i % 5], hot: !!st, tx: c[0], ty: c[1],
+            d: Math.hypot(c[0] - W / 2, c[1] - H / 2) });
+        });
+        // nearest first, so the town just out of frame gets the spot straight towards it
+        want.sort(function (a, b) { return a.d - b.d || (a.id < b.id ? -1 : 1); });
+        want.forEach(function (c) { chips.push(placeChip(ctx, c, W, H, avoid)); });
+        if (showCommons && !comOn) {
+          var cc = toCss(L.commons.x + L.commons.w / 2, L.commons.y + L.commons.h / 2);
+          chips.push(placeChip(ctx, { id: '__commons', name: 'Commons ' + Math.round(comRatio * 100) + '%', status: '', tint: comRatio < 0.25 ? tok.crit : tok.line2, tx: cc[0], ty: cc[1] }, W, H, avoid));
+        }
+      }
+      var chipAt = {};
+      chips.forEach(function (c) { chipAt[c.id] = c; });
+
+      // tension arcs reuse the vector renderer with island geometry; an out-of-frame town is its chip
       var LV = { nations: {}, gx: 0, gy: 0 };
       var cnt = 0;
       s.nations.forEach(function (n) {
         var P = L.towns[n.id];
         if (!P) return;
-        var c0 = toCss(P.x + TOWN_W / 2, P.y + TOWN_H * 0.45);
-        LV.nations[n.id] = { x: c0[0], y: c0[1], R: TOWN_W * 0.3 * k, i: cnt };
+        var c0 = toCss(P.x + TOWN_W / 2, P.y + TOWN_H * 0.45), R0 = TOWN_W * 0.3 * k;
+        if (chipAt[n.id]) { c0 = [chipAt[n.id].cx, chipAt[n.id].cy]; R0 = 9; }
+        LV.nations[n.id] = { x: c0[0], y: c0[1], R: R0, i: cnt };
         LV.gx += c0[0]; LV.gy += c0[1]; cnt++;
       });
       LV.gx /= Math.max(1, cnt); LV.gy /= Math.max(1, cnt) - 0.001;
       LV.gy += 1;
-      try { env.vector.drawTension(s, LV, now, still); } catch (e) { if (!R.warned) { R.warned = 1; console.warn("[pixelmap] tension", e); } }
+      var tens = s;
+      if (framed && s.tension) {
+        // an arc between two towns that are both out of frame would only cross the view
+        tens = { tension: {} };
+        Object.keys(s.tension).forEach(function (key) { var ids = key.split('|'); if (onScreen[ids[0]] || onScreen[ids[1]]) tens.tension[key] = s.tension[key]; });
+      }
+      try { env.vector.drawTension(tens, LV, now, still); } catch (e) { if (!R.warned) { R.warned = 1; console.warn("[pixelmap] tension", e); } }
 
       // labels
-      s.nations.forEach(function (n, i) { var P = L.towns[n.id]; if (P) drawLabel(ctx, n, toCss(P.x + TOWN_W / 2, P.y), tok, W, tok.tints[i % 5]); });
-      if (L.commons && cfgW.commons !== false) {
+      labelBoxes.forEach(function (q) { drawLabel(ctx, q.n, q.b, tok, tok.tints[q.i % 5]); });
+      if (comOn) {
         var cp = toCss(L.commons.x + L.commons.w / 2, L.commons.y + L.commons.h);
         ctx.font = '600 9.5px "IBM Plex Mono", monospace';
         var ct = 'COMMONS ' + Math.round(comRatio * 100) + '%';
@@ -873,26 +1016,88 @@
         ctx.globalAlpha = 1; ctx.lineWidth = 1; ctx.strokeStyle = l.mine ? tok.signal : tok.line2; ctx.stroke();
         ctx.fillStyle = l.mine ? tok.signal : tok.text; ctx.fillText(l.name, p[0], p[1] - 7.5);
       });
-      // pings: an outline around the island
+      // pings: an outline around the island, or around its chip when it is out of frame
       var keepP = [];
       R.pings.forEach(function (p) {
         var f = (now - p.t0) / 1800, P = L.towns[p.nid];
         if (f >= 1 || !P || still) return;
         keepP.push(p);
-        var a = toCss(P.x - 4 - f * 8, P.y - 4 - f * 8), b = toCss(P.x + TOWN_W + 4 + f * 8, P.y + TOWN_H + 4 + f * 8);
         ctx.globalAlpha = 0.8 * (1 - f); ctx.strokeStyle = tok.signal; ctx.lineWidth = 2;
-        rr(ctx, a[0], a[1], b[0] - a[0], b[1] - a[1], 8); ctx.stroke(); ctx.globalAlpha = 1;
+        var ch = chipAt[p.nid];
+        if (ch) { rr(ctx, ch.x - 3 - f * 6, ch.y - 3 - f * 6, ch.w + 6 + f * 12, ch.h + 6 + f * 12, 8); }
+        else {
+          var a = toCss(P.x - 4 - f * 8, P.y - 4 - f * 8), b = toCss(P.x + TOWN_W + 4 + f * 8, P.y + TOWN_H + 4 + f * 8);
+          rr(ctx, a[0], a[1], b[0] - a[0], b[1] - a[1], 8);
+        }
+        ctx.stroke(); ctx.globalAlpha = 1;
       });
       R.pings = keepP;
-      if (cfgW.escalation) {
-        var D = dialSpot(L, W, H, dpr);
+      chips.forEach(function (c) { drawChip(ctx, c, tok); });
+      if (D) {
+        if (framed) { ctx.globalAlpha = 0.85; ctx.fillStyle = tok.surface; rr(ctx, D.x - D.r - 7, D.y - D.r - 7, D.r * 2 + 14, D.r + 40, 8); ctx.fill(); ctx.globalAlpha = 1; }
         try { env.vector.drawDial(num(s.doomsday, 0), D); } catch (e) { /* ignore */ }
       }
-      ctx.font = '500 10px "IBM Plex Mono", monospace';
-      ctx.fillStyle = tok.faint; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      ctx.fillText('YEAR ' + num(s.year, 0) + ' · ROUND ' + num(s.round, 0), 12, H - 10);
+      if (stamp) {
+        ctx.font = '500 10px "IBM Plex Mono", monospace';
+        if (framed) { ctx.globalAlpha = 0.85; ctx.fillStyle = tok.surface; rr(ctx, 6, H - 23, ctx.measureText(stampText).width + 12, 18, 5); ctx.fill(); ctx.globalAlpha = 1; }
+        ctx.fillStyle = tok.faint; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText(stampText, 12, H - 10);
+      }
       return true;
     };
+
+    // ---------------------------------------------------------------- edge chips (out-of-frame towns)
+    function overlaps(q, list) {
+      for (var i = 0; i < list.length; i++) { var o = list[i]; if (q[0] < o[2] && q[2] > o[0] && q[1] < o[3] && q[3] > o[1]) return true; }
+      return false;
+    }
+    function placeChip(ctx, c, W, H, avoid) {
+      ctx.font = '700 11px "IBM Plex Mono", monospace';
+      var tw = ctx.measureText(c.name.toUpperCase()).width;
+      ctx.font = '600 9px "IBM Plex Mono", monospace';
+      var sw = c.status ? ctx.measureText(c.status).width + 8 : 0;
+      var w = Math.min(W - 12, Math.ceil(tw + sw + 30)), h = 22, m = 6;
+      // from the view centre towards the town, stopped at the edge
+      var cx = W / 2, cy = H / 2, dx = c.tx - cx, dy = c.ty - cy;
+      var hx = Math.max(1, W / 2 - m - w / 2), hy = Math.max(1, H / 2 - m - h / 2);
+      var t = Math.min(dx ? hx / Math.abs(dx) : Infinity, dy ? hy / Math.abs(dy) : Infinity);
+      if (!isFinite(t)) t = 0;
+      var px = cx + dx * t, py = cy + dy * t, horiz = Math.abs(dy) * hx >= Math.abs(dx) * hy;   // hits top or bottom
+      var best = null;
+      for (var i = 0; i < 14 && !best; i++) {
+        var step = (i % 2 ? 1 : -1) * Math.ceil(i / 2), qx = px, qy = py;
+        if (horiz) qx = clamp(px + step * (w / 2 + 6) * (dx >= 0 ? -1 : 1), m + w / 2, W - m - w / 2);
+        else qy = clamp(py + step * (h + 6) * (dy >= 0 ? -1 : 1), m + h / 2, H - m - h / 2);
+        var q = [qx - w / 2, qy - h / 2, qx + w / 2, qy + h / 2];
+        if (!overlaps(q, avoid)) best = [qx, qy];
+      }
+      if (!best) best = [px, py];
+      var out = { id: c.id, name: c.name, status: c.status, tint: c.tint, hot: c.hot, x: best[0] - w / 2, y: best[1] - h / 2, w: w, h: h,
+        cx: best[0], cy: best[1], ang: Math.atan2(c.ty - best[1], c.tx - best[0]) };
+      avoid.push([out.x - 4, out.y - 4, out.x + w + 4, out.y + h + 4]);
+      return out;
+    }
+    function drawChip(ctx, c, tok) {
+      ctx.save();
+      ctx.globalAlpha = 0.94; ctx.fillStyle = tok.surface; rr(ctx, c.x, c.y, c.w, c.h, 6); ctx.fill();
+      ctx.globalAlpha = 1; ctx.strokeStyle = c.tint; ctx.lineWidth = 1.2; ctx.stroke();
+      // arrow towards the town
+      ctx.translate(c.x + 12, c.cy); ctx.rotate(c.ang);
+      ctx.strokeStyle = c.tint; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.moveTo(-5.5, 0); ctx.lineTo(5, 0); ctx.moveTo(1, -4); ctx.lineTo(5, 0); ctx.lineTo(1, 4); ctx.stroke();
+      ctx.restore();
+      ctx.save();
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.font = '700 11px "IBM Plex Mono", monospace'; ctx.fillStyle = tok.label;
+      var name = c.name.toUpperCase(), x = c.x + 22, maxW = c.w - 28;
+      var nw = ctx.measureText(name).width;
+      ctx.fillText(name, x, c.cy + 0.5, maxW);
+      if (c.status) {
+        ctx.font = '600 9px "IBM Plex Mono", monospace'; ctx.fillStyle = tok.crit;
+        ctx.fillText(c.status, x + Math.min(nw, maxW) + 8, c.cy + 0.5, Math.max(10, maxW - nw - 8));
+      }
+      ctx.restore();
+    }
 
     function drawEmote(g, name, x, y, now) {
       var an = A.anims[name];
@@ -905,11 +1110,9 @@
       } else spr(g, name, x, y);
     }
 
-    function drawLabel(ctx, n, p, tok, W, tint) {
-      var dead = n.alive === false;
-      var name = n.name || n.id;
+    function labelParts(n, tok) {
       var parts = [];
-      if (dead) parts.push([tok.crit, 'FALLEN']);
+      if (n.alive === false) parts.push([tok.crit, 'FALLEN']);
       else {
         parts.push([tok.dim, env.systemLabel(n.system).toUpperCase()]);
         var m = n.metrics || {};
@@ -917,26 +1120,38 @@
         if (num(m.shortage, 0) > 15) parts.push([tok.warn, 'SHORTAGES']);
         if (n.governor && n.governor.inOffice === false) parts.push([tok.warn, 'NO GOVERNOR']);
       }
+      return parts;
+    }
+    // label box in CSS px above the island; kept inside the stage when the view is framed by a camera
+    function measureLabel(ctx, n, p, W, H, framed, hero) {
+      var tok = env.tok(), name = n.name || n.id, parts = labelParts(n, tok);
       ctx.save();
-      var fs = W < 520 ? 12.5 : 14.5;
+      var fs = hero ? (W < 360 ? 14 : 16) : (W < 520 ? 12.5 : 14.5);
       ctx.font = '700 ' + fs + 'px "Bricolage Grotesque", "IBM Plex Sans", sans-serif';
       var nw = ctx.measureText(name).width;
       ctx.font = '500 9px "IBM Plex Mono", monospace';
       var sep = '  ', sw = 0;
       parts.forEach(function (q, i) { sw += ctx.measureText(q[1]).width + (i ? ctx.measureText(sep).width : 0); });
+      ctx.restore();
       var w = Math.max(nw, sw) + 16, h = fs + 18, x = clamp(p[0] - w / 2, 2, W - w - 2), y = p[1] - h - 2;
+      if (framed) y = clamp(y, 4, Math.max(4, H - h - 4));
+      return { x: x, y: y, w: w, h: h, fs: fs, nw: nw, sw: sw, sep: sep, name: name, parts: parts };
+    }
+    function drawLabel(ctx, n, b, tok, tint) {
+      var dead = n.alive === false, x = b.x, y = b.y, w = b.w, h = b.h, fs = b.fs, nw = b.nw, sw = b.sw, sep = b.sep;
+      ctx.save();
       ctx.globalAlpha = 0.9; ctx.fillStyle = tok.surface; rr(ctx, x, y, w, h, 6); ctx.fill();
       ctx.globalAlpha = 1; ctx.strokeStyle = dead ? tok.crit : tint; ctx.lineWidth = 1; ctx.stroke();
       ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
       ctx.font = '700 ' + fs + 'px "Bricolage Grotesque", "IBM Plex Sans", sans-serif';
       ctx.fillStyle = dead ? tok.faint : tok.label;
       var cx = x + w / 2;
-      ctx.fillText(name, cx, y + fs + 2);
+      ctx.fillText(b.name, cx, y + fs + 2);
       if (dead) { ctx.strokeStyle = tok.crit; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx - nw / 2 - 2, y + fs * 0.7); ctx.lineTo(cx + nw / 2 + 2, y + fs * 0.7); ctx.stroke(); }
       ctx.font = '500 9px "IBM Plex Mono", monospace';
       ctx.textAlign = 'left';
       var tx = cx - sw / 2;
-      parts.forEach(function (q, i) {
+      b.parts.forEach(function (q, i) {
         if (i) tx += ctx.measureText(sep).width;
         ctx.fillStyle = q[0]; ctx.fillText(q[1], tx, y + h - 5);
         tx += ctx.measureText(q[1]).width;
@@ -944,14 +1159,17 @@
       ctx.restore();
     }
 
-    function dialSpot(L, W, H, dpr) {
-      var r = W < 480 ? 22 : 28;
+    function dialSpot(L, W, H, dpr, avoid) {
+      var r = avoid ? 20 : W < 480 ? 22 : 28;
       var cands = [[W - r - 14, r + 16], [W - r - 14, H - 40], [r + 14, H - 52], [r + 30, r + 16]];
+      // framed views: also the water beside the framed island
+      if (avoid) cands.push([W - r - 9, Math.round(H * 0.42)], [W - r - 9, Math.round(H * 0.62)], [r + 9, Math.round(H * 0.42)], [r + 9, Math.round(H * 0.62)]);
       var rects = [];
       for (var id in L.towns) {
         var t = L.towns[id];
         rects.push([(L.ox + t.x * L.s) / dpr, (L.oy + (t.y - 30) * L.s) / dpr, (L.ox + (t.x + TOWN_W) * L.s) / dpr, (L.oy + (t.y + TOWN_H) * L.s) / dpr]);
       }
+      if (avoid) rects = rects.concat(avoid);
       var best = cands[0], bd = -Infinity;
       cands.forEach(function (c) {
         var d = Infinity;
