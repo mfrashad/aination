@@ -2,7 +2,8 @@
 // index.html has no doctype/html/head/body on purpose (the hosting page adds them), so this wraps it.
 const http = require('http'), fs = require('fs'), path = require('path');
 const ROOT = __dirname, PORT = +process.argv[2] || 8765;
-const TYPES = { '.js': 'text/javascript', '.html': 'text/html; charset=utf-8', '.md': 'text/plain; charset=utf-8' };
+const TYPES = { '.js': 'text/javascript', '.html': 'text/html; charset=utf-8', '.md': 'text/plain; charset=utf-8',
+  '.json': 'application/json', '.png': 'image/png', '.txt': 'text/plain; charset=utf-8' };
 
 http.createServer((req, res) => {
   const u = decodeURIComponent(req.url.split('?')[0]);

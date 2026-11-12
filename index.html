@@ -319,6 +319,9 @@ select { padding-right: 8px; cursor: pointer; }
 .lg-protest { border: 1.5px solid var(--crit); background: transparent; width: 11px; height: 11px; }
 .lg-follow { border: 1.5px solid var(--text); background: transparent; width: 11px; height: 11px; }
 .lg-arc { width: 18px; height: 3px; border-radius: 2px; background: var(--crit); display: inline-block; }
+.lg-group { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; min-width: 0; }
+.lg-pip { background: var(--dot-owner); border-radius: 1px; width: 6px; height: 6px; }
+.seg-map button { height: 26px; min-width: 0; padding: 0 9px; font-size: 11.5px; }
 
 /* ---------- nation cards ---------- */
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; }
@@ -561,6 +564,7 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
 .smeter .v { font-family: var(--font-mono); font-size: 5.6cqw; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .smeter svg { width: 100%; height: 22px; display: block; margin-top: 3px; }
 .story-stamp { border-top: 1px solid var(--line); padding-top: 9px; font-family: var(--font-mono); font-size: 2.7cqw; color: var(--text-dim); line-height: 1.5; }
+.story-credit { font-family: var(--font-mono); font-size: 2.4cqw; color: var(--text-faint); margin-top: -6px; }
 .story-stamp strong { color: var(--text); font-weight: 600; display: block; font-size: 3.2cqw; margin-top: 3px; letter-spacing: .02em; }
 
 /* ---------- footer ---------- */
@@ -662,14 +666,30 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
           <div class="map-overlay end-card" id="endCard" hidden></div>
         </div>
       </div>
-      <div class="legend" aria-label="Map legend">
-        <span><i class="lg-dot lg-worker"></i>Worker</span>
-        <span><i class="lg-dot lg-owner"></i>Owner</span>
-        <span><i class="lg-dot lg-elite"></i>Elite</span>
-        <span>Faded dot: unhappy</span>
-        <span><i class="lg-dot lg-protest"></i>Protesting</span>
-        <span><i class="lg-dot lg-follow"></i>A viewer's citizen</span>
-        <span><i class="lg-arc"></i>Tension</span>
+      <div class="legend">
+        <div class="seg seg-map" role="group" aria-label="Map style" id="mapModeSeg" hidden>
+          <button type="button" data-mode="pixel" aria-pressed="true">Pixel</button>
+          <button type="button" data-mode="chart" aria-pressed="false">Chart</button>
+        </div>
+        <div class="lg-group" id="lgChart" aria-label="Map legend">
+          <span><i class="lg-dot lg-worker"></i>Worker</span>
+          <span><i class="lg-dot lg-owner"></i>Owner</span>
+          <span><i class="lg-dot lg-elite"></i>Elite</span>
+          <span>Faded dot: unhappy</span>
+          <span><i class="lg-dot lg-protest"></i>Protesting</span>
+          <span><i class="lg-dot lg-follow"></i>A viewer's citizen</span>
+          <span><i class="lg-arc"></i>Tension</span>
+        </div>
+        <div class="lg-group" id="lgPixel" aria-label="Map legend" hidden>
+          <span>Casual clothes: worker</span>
+          <span>Smart clothes: owner</span>
+          <span><i class="lg-dot lg-pip"></i>Gold pip, suit: elite</span>
+          <span>Angry bubble: protesting</span>
+          <span>Tear: unhappy</span>
+          <span><i class="lg-dot lg-follow"></i>Named, ringed: a viewer's citizen</span>
+          <span>Boat: emigrating</span>
+          <span><i class="lg-arc"></i>Tension</span>
+        </div>
       </div>
       <div class="cards" id="cards"></div>
     </section>
@@ -711,6 +731,7 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
       </div>
       <div class="story-meters" id="storyMeters"></div>
       <div class="story-stamp" id="storyStamp"></div>
+      <div class="story-credit" id="storyCredit" hidden>Pixel art: LimeZu (limezu.itch.io)</div>
     </div>
   </section>
 
@@ -718,10 +739,12 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
     <strong>Simulation, not prediction.</strong>
     <span>Rule-based agents. Fictional nations.</span>
     <span class="mono">Engine <span id="footVer">?</span> · seed <span id="footSeed">?</span></span>
+    <span id="pixCredit" hidden>Pixel art: LimeZu (limezu.itch.io)</span>
   </footer>
   <div class="sr-only" aria-live="polite" aria-atomic="true" id="liveRegion"></div>
 </div>
 
 <script src="engine.js"></script>
 <script src="store.js"></script>
+<script src="pixelmap.js"></script>
 <script src="ui.js"></script>

@@ -14,8 +14,9 @@ interface so LLM brains can replace the rules later without touching the world o
 | `engine.js` | Engine agent | Simulation. Pure JS, no DOM. Works in browser (`window.GovSim`) and Node (`module.exports`). |
 | `engine.test.js` | Engine agent | Node tests (`node engine.test.js`, exits non-zero on failure). |
 | `store.js` | Store agent | Participation storage: shared db when available, local fallback. `window.GovStore`. |
-| `index.html` | UI agent | Page: `<title>`, `<style>`, markup, then `<script src="engine.js">`, `<script src="store.js">`, `<script src="ui.js">`. |
+| `index.html` | UI agent | Page: `<title>`, `<style>`, markup, then `<script src="engine.js">`, `<script src="store.js">`, `<script src="pixelmap.js">`, `<script src="ui.js">`. |
 | `ui.js` | UI agent | All rendering and interaction. |
+| `pixelmap.js` | UI agent | Optional pixel world map, drawn from a local gitignored atlas (`assets/`, built by `tools/build-atlas.py`). Falls back to the vector map. |
 
 No build step. No frameworks required. No external requests except Google Fonts stylesheet.
 Do not touch files you do not own. Never use `alert/confirm/prompt`. Wrap all localStorage in try/catch.

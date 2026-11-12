@@ -341,6 +341,7 @@
     addFeed(ev);
     if (ev.highlight) showHighlight(ev);
     if (ev.nationId && ev.highlight) MAP.ping(ev.nationId);
+    if (PIX.r) PIX.r.onEvent(ev);
   }
 
   function addFeed(ev) {
@@ -380,6 +381,49 @@
     if (r) r.textContent = text;
   }
 
+  // ---------------------------------------------------------------- pixel world (pixelmap.js + licensed atlas)
+  // The pixel view needs assets/atlas.json, built locally by tools/build-atlas.py. Without it the vector
+  // chart map below is the only view and the toggle stays hidden.
+  var PIX = {
+    r: null,
+    mode: LS.get('mapMode', 'pixel') === 'chart' ? 'chart' : 'pixel',
+    on: function () { return !!this.r && this.mode === 'pixel'; },
+    init: function () {
+      if (!window.PixelMap || typeof window.PixelMap.load !== 'function') return;
+      var self = this;
+      window.PixelMap.load('assets/').then(function (atlas) {
+        if (!atlas) return;
+        try {
+          self.r = window.PixelMap.create(atlas, {
+            state: st,
+            config: function () { return W() && W().config; },
+            tok: function () { return MAP.tok; },
+            systemLabel: systemLabel,
+            myUserId: function () { return S.store.info && S.store.info.userId; },
+            reduced: reduced,
+            vector: MAP
+          });
+        } catch (e) { console.warn('[aination ui] pixel map failed', e); self.r = null; return; }
+        self.r.onState();
+        $('#mapModeSeg').hidden = false;
+        self.apply();
+      });
+    },
+    set: function (m) { this.mode = m === 'chart' ? 'chart' : 'pixel'; LS.set('mapMode', this.mode); this.apply(); },
+    apply: function () {
+      var on = this.on();
+      $$('#mapModeSeg button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.mode === PIX.mode)); });
+      $('#lgChart').hidden = on;
+      $('#lgPixel').hidden = !on;
+      $('#pixCredit').hidden = !on;
+      var sc = $('#storyCredit');
+      if (sc) sc.hidden = !on;
+      MAP.cv.setAttribute('aria-label', on ? 'Pixel map of nations. Each island is a nation; each person is a citizen.' : 'Map of nations. Each dot is a citizen.');
+      MAP.needs = true;
+      MAP.draw(performance.now());
+    }
+  };
+
   // ---------------------------------------------------------------- map renderer (canvas)
   var SQ = 0.9;
   var MAP = {
@@ -407,7 +451,8 @@
         text: g('--text', '#e7ecf3'), surface: g('--surface', '#101a29'),
         tints: [1, 2, 3, 4, 5].map(function (i) { return g('--tint-' + i, '#888'); }),
         worker: g('--dot-worker', '#ccc'), owner: g('--dot-owner', '#eb7'), elite: g('--dot-elite', '#fff'), dead: g('--dot-dead', '#555'),
-        good: g('--good', '#5b8'), warn: g('--warn', '#da5'), crit: g('--crit', '#e65'), signal: g('--signal', '#f97'), water: g('--water', '#47a')
+        good: g('--good', '#5b8'), warn: g('--warn', '#da5'), crit: g('--crit', '#e65'), signal: g('--signal', '#f97'), water: g('--water', '#47a'),
+        shadow: g('--shadow', '#0006'), line2: g('--line-2', '#2b3c59')
       };
       this.needs = true;
     },
@@ -426,6 +471,7 @@
     resetWorld: function () {
       this.L = null; this.units = {}; this.prevLoc = {}; this.prevInfo = {}; this.travellers = []; this.inFlight = {}; this.pings = [];
       this.basePop = {};
+      if (PIX.r) PIX.r.reset();
       var cfgN = (W() && W().config && W().config.nations) || [];
       var self = this;
       nations().forEach(function (n, i) {
@@ -437,6 +483,7 @@
     },
     onState: function () {
       this.snapshotLocs(!reduced());
+      if (PIX.r) PIX.r.onState();
       this.needs = true;
       if (reduced()) this.draw(performance.now());
     },
@@ -445,6 +492,7 @@
       if (this.pings.some(function (p) { return p.nid === nid && now - p.t0 < 1800; })) return;
       this.pings.push({ nid: nid, t0: now });
       if (this.pings.length > 5) this.pings.shift();
+      if (PIX.r) PIX.r.ping(nid);
     },
     shape: function (id) {
       var s = this.shapes[id];
@@ -575,6 +623,7 @@
           if (added > 40) break;
           var from = this.prevLoc[cid], to = cur[cid];
           if (to === from) continue;
+          if (PIX.r) PIX.r.onMove(cid, from, to);
           var a = this.citizenXY(from, cid);
           if (!a) continue;
           var b, exit = false;
@@ -607,6 +656,8 @@
     draw: safe(function (now) {
       var ctx = this.ctx, T = this.tok, Wd = this.W, Ht = this.H, s = st();
       if (!ctx || !T) return;
+      if (PIX.on() && PIX.r.draw(ctx, Wd, Ht, this.dpr, now)) return;
+      ctx.imageSmoothingEnabled = true;
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       ctx.globalAlpha = 1;
       ctx.fillStyle = T.bg;
@@ -1979,6 +2030,7 @@
     });
     $('#resetBtn').addEventListener('click', function () { resetWorld(); setPlaying(true); });
     $('#storyBtn').addEventListener('click', function () { setStory(!S.story); });
+    $$('#mapModeSeg button').forEach(function (b) { b.addEventListener('click', function () { PIX.set(b.dataset.mode); }); });
     $('#storyExit').addEventListener('click', function () { setStory(false); $('#storyBtn').focus(); });
     $$('#tabs .tab').forEach(function (b) {
       b.addEventListener('click', function () { selectTab(b.dataset.tab); });
@@ -2019,6 +2071,7 @@
     loadMeta();
     MAP.init();
     wire();
+    PIX.init();
     selectTab(S.tab);
     var first = scenarioById('three_systems') || META.scenarios[0];
     var cfg = first ? first.config : G.defaultConfig();
