@@ -7,7 +7,7 @@ safeguards. Viewers watch, play, join as citizens, and propose laws. Recordings 
 v0.1 uses fast rule-based agents (no LLM calls). Every agent decision goes through a pluggable "brain"
 interface so LLM brains can replace the rules later without touching the world or the UI.
 
-## Files (all in /home/claude/govsim/)
+## Files (repo root)
 
 | File | Owner | Role |
 | --- | --- | --- |
@@ -208,6 +208,6 @@ Design direction (decided, follow it): dark-first, deep ink-navy ground like a l
 cartographic tints (ochre, teal, rose, slate-violet, moss), never neon. Semantic colours (good / warning /
 critical) are separate from nation tints. Light theme is a cool pale chart-paper, not cream. Fonts:
 Bricolage Grotesque (display), IBM Plex Sans (body), IBM Plex Mono (figures, tabular). Follow the page
-contract in `/home/claude/govsim/PAGE_CONTRACT.md` exactly (theme tokens, safe-area gutters, no doctype,
+contract in `docs/PAGE_CONTRACT.md` exactly (theme tokens, safe-area gutters, no doctype,
 CDN rules, phone width). Must work at 400 px wide: map on top, cards and panel stack below.
 Opens already running the default scenario, so the first frame is alive.
