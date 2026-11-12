@@ -115,28 +115,38 @@
 
   // ============================================================================ static data
   var POLICIES = [
-    { id: 'income_tax_top', label: 'Top income tax', area: 'Tax', kind: 'range', min: 0, max: 95, step: 1, default: 40, unit: '%', description: 'Marginal rate on income above 2.5x the median. Revenue rises until high earners work less, hide income, move capital or leave.' },
-    { id: 'income_tax_base', label: 'Base income tax', area: 'Tax', kind: 'range', min: 0, max: 50, step: 1, default: 15, unit: '%', description: 'Flat rate on all declared income. Reliable revenue that lands on workers; high levels dull effort.' },
-    { id: 'wealth_tax', label: 'Wealth tax', area: 'Tax', kind: 'range', min: 0, max: 10, step: 0.5, default: 0, unit: '% / yr', description: 'Yearly levy on wealth above 10x median income. A strong equaliser on the most mobile tax base, so it invites flight and concealment.' },
-    { id: 'corporate_tax', label: 'Corporate tax', area: 'Tax', kind: 'range', min: 0, max: 60, step: 1, default: 25, unit: '%', description: 'Tax on private profits. Above about 25% firms shift profits abroad unless capital controls stop them; cuts investment.' },
-    { id: 'vat', label: 'Sales tax (VAT)', area: 'Tax', kind: 'range', min: 0, max: 25, step: 0.5, default: 10, unit: '%', description: 'Tax on consumption. Hard to dodge but regressive: poorer people spend more of what they earn.' },
-    { id: 'carbon_tax', label: 'Carbon tax', area: 'Tax', kind: 'range', min: 0, max: 100, step: 1, default: 20, unit: 'per t', description: 'Prices extraction from the shared commons. Protects the resource stock; costs output and can spark fuel protests.' },
-    { id: 'ubi', label: 'Universal basic income', area: 'Welfare', kind: 'range', min: 0, max: 50, step: 1, default: 0, unit: '% median', description: 'Paid to every resident. Cuts poverty fast; expensive, can dull work effort, and if funded by printing it feeds inflation.' },
-    { id: 'targeted_aid', label: 'Targeted aid', area: 'Welfare', kind: 'range', min: 0, max: 30, step: 1, default: 8, unit: '% median', description: 'Means-tested support for low earners (pays twice the rate). Cheaper than UBI, but the benefit cliff can trap people in low work.' },
-    { id: 'healthcare', label: 'Healthcare', area: 'Welfare', kind: 'range', min: 0, max: 100, step: 1, default: 50, unit: 'index', description: 'Public health spending. Raises health, productivity and welfare with diminishing returns; softens pandemics.' },
-    { id: 'education', label: 'Education', area: 'Welfare', kind: 'range', min: 0, max: 100, step: 1, default: 50, unit: 'index', description: 'Public education spending. Pays off in productivity only after a lag of years; easy to cut, slow to rebuild.' },
-    { id: 'min_wage', label: 'Minimum wage', area: 'Labour', kind: 'range', min: 0, max: 80, step: 1, default: 40, unit: '% median', description: 'Wage floor. Lifts low pay; above about 45% of median it prices low-skill workers out of jobs.' },
-    { id: 'price_controls', label: 'Price controls', area: 'Markets', kind: 'toggle', min: 0, max: 1, step: 1, default: false, unit: '', description: 'Caps official prices. Hides inflation for a while; the hidden pressure turns into shortages and black markets.' },
-    { id: 'nationalisation', label: 'Nationalisation', area: 'Markets', kind: 'range', min: 0, max: 100, step: 1, default: 15, unit: '%', description: 'State share of firms. Profits flow to the treasury; efficiency falls without oversight and owners grow nervous.' },
-    { id: 'tariffs', label: 'Tariffs', area: 'Markets', kind: 'range', min: 0, max: 50, step: 1, default: 5, unit: '%', description: 'Import duties. Some revenue and protection; drags productivity and raises tension with neighbours.' },
-    { id: 'money_printing', label: 'Money printing', area: 'Money', kind: 'range', min: 0, max: 20, step: 0.5, default: 0, unit: '% GDP', description: 'New money handed to the treasury each round. Free money at first; then inflation erodes savings, trust and its own value.' },
-    { id: 'audit_rate', label: 'Audit rate', area: 'Governance', kind: 'range', min: 0, max: 50, step: 1, default: 10, unit: '%', description: 'Share of tax returns and ministries audited. Catches evasion and graft; costs money and some productivity.' },
-    { id: 'transparency', label: 'Transparency', area: 'Governance', kind: 'range', min: 0, max: 100, step: 1, default: 60, unit: 'index', description: 'Open data and disclosure. Makes misreporting and graft easier to expose; scandals hit trust harder.' },
-    { id: 'governor_salary', label: 'Governor salary', area: 'Governance', kind: 'range', min: 0, max: 10, step: 0.5, default: 3, unit: 'x median', description: 'Official pay for the governor. Too low invites skimming; very high pay looks like self-dealing.' },
-    { id: 'immigration_open', label: 'Immigration openness', area: 'Borders', kind: 'range', min: 0, max: 100, step: 1, default: 50, unit: 'index', description: 'How readily newcomers are accepted. Adds workers and talent; fast inflows during high unemployment cause backlash.' },
-    { id: 'capital_controls', label: 'Capital controls', area: 'Borders', kind: 'range', min: 0, max: 100, step: 1, default: 10, unit: 'index', description: 'Limits on moving money and people out. Stops capital flight and profit shifting; scares off investment and feeds black markets.' },
-    { id: 'military_spending', label: 'Military spending', area: 'Security', kind: 'range', min: 0, max: 20, step: 0.5, default: 5, unit: '% budget', description: 'Share of the budget for defence. Deterrence for some, coup risk for others; crowds out welfare.' }
+    { id: 'income_tax_top', label: 'Tax on the rich', area: 'Tax', kind: 'range', min: 0, max: 95, step: 1, default: 40, unit: '%', description: 'Extra tax on pay above 2.5 times typical pay. Brings in money until the rich work less, hide income or leave.' },
+    { id: 'income_tax_base', label: 'Income tax', area: 'Tax', kind: 'range', min: 0, max: 50, step: 1, default: 15, unit: '%', description: 'A flat tax on everyone\'s pay. Steady money for the state, but it hits workers and can make people work less.' },
+    { id: 'wealth_tax', label: 'Wealth tax', area: 'Tax', kind: 'range', min: 0, max: 10, step: 0.5, default: 0, unit: '% / yr', description: 'A yearly tax on big fortunes. It shrinks the gap, but the rich may hide money or move it abroad.' },
+    { id: 'corporate_tax', label: 'Business tax', area: 'Tax', kind: 'range', min: 0, max: 60, step: 1, default: 25, unit: '%', description: 'Tax on company profits. Above about 25%, firms move profits abroad and invest less at home.' },
+    { id: 'vat', label: 'Sales tax', area: 'Tax', kind: 'range', min: 0, max: 25, step: 0.5, default: 10, unit: '%', description: 'Tax on everything people buy. Hard to dodge, but it hits poorer people hardest.' },
+    { id: 'carbon_tax', label: 'Pollution tax', area: 'Tax', kind: 'range', min: 0, max: 100, step: 1, default: 20, unit: 'per t', description: 'Makes it cost more to use up the shared forest and lake. Protects them, but slows the economy and can spark protests.' },
+    { id: 'ubi', label: 'Free money for all', area: 'Welfare', kind: 'range', min: 0, max: 50, step: 1, default: 0, unit: '% median', description: 'Cash for every resident. Cuts poverty fast, but costs a lot. Printing money to pay for it pushes prices up.' },
+    { id: 'targeted_aid', label: 'Help for the poor', area: 'Welfare', kind: 'range', min: 0, max: 30, step: 1, default: 8, unit: '% median', description: 'Cash for people on low pay. Cheaper than free money for all, but some people avoid earning more to keep it.' },
+    { id: 'healthcare', label: 'Healthcare', area: 'Welfare', kind: 'range', min: 0, max: 100, step: 1, default: 50, unit: 'index', description: 'Public money for doctors and hospitals. Keeps people healthy and working. Each extra bit helps a little less.' },
+    { id: 'education', label: 'Schools', area: 'Welfare', kind: 'range', min: 0, max: 100, step: 1, default: 50, unit: 'index', description: 'Public money for schools. It pays off only after years. Easy to cut, slow to rebuild.' },
+    { id: 'min_wage', label: 'Minimum wage', area: 'Labour', kind: 'range', min: 0, max: 80, step: 1, default: 40, unit: '% median', description: 'The lowest pay allowed. It lifts low pay, but set too high it costs low-skill workers their jobs.' },
+    { id: 'price_controls', label: 'Price caps', area: 'Markets', kind: 'toggle', min: 0, max: 1, step: 1, default: false, unit: '', description: 'The state caps prices. Prices look calm for a while, then shelves empty and black markets grow.' },
+    { id: 'nationalisation', label: 'State-owned business', area: 'Markets', kind: 'range', min: 0, max: 100, step: 1, default: 15, unit: '%', description: 'How much of business the state owns. Profits go to the state, but without checks it gets wasteful.' },
+    { id: 'tariffs', label: 'Import tax', area: 'Markets', kind: 'range', min: 0, max: 50, step: 1, default: 5, unit: '%', description: 'Tax on goods from abroad. Protects local firms, but slows the economy and angers neighbours.' },
+    { id: 'money_printing', label: 'Printing money', area: 'Money', kind: 'range', min: 0, max: 20, step: 0.5, default: 0, unit: '% GDP', description: 'New money for the government every few months. Feels free at first, then prices rise and savings shrink.' },
+    { id: 'audit_rate', label: 'Tax and spending checks', area: 'Governance', kind: 'range', min: 0, max: 50, step: 1, default: 10, unit: '%', description: 'How many tax returns and offices get checked. Catches cheats and bribes, but costs money.' },
+    { id: 'transparency', label: 'Open records', area: 'Governance', kind: 'range', min: 0, max: 100, step: 1, default: 60, unit: 'index', description: 'How much government data the public can see. Lies and bribes get caught more often, and scandals hit harder.' },
+    { id: 'governor_salary', label: 'Governor\'s pay', area: 'Governance', kind: 'range', min: 0, max: 10, step: 0.5, default: 3, unit: 'x median', description: 'The governor\'s official pay. Too low tempts stealing. Very high pay looks greedy.' },
+    { id: 'immigration_open', label: 'Open borders', area: 'Borders', kind: 'range', min: 0, max: 100, step: 1, default: 50, unit: 'index', description: 'How easily newcomers can move in. Adds workers, but a big wave while jobs are scarce causes anger.' },
+    { id: 'capital_controls', label: 'Limits on moving money out', area: 'Borders', kind: 'range', min: 0, max: 100, step: 1, default: 10, unit: 'index', description: 'Rules that stop money and people leaving. The rich cannot move money abroad, but investors stay away and black markets grow.' },
+    { id: 'military_spending', label: 'Army spending', area: 'Security', kind: 'range', min: 0, max: 20, step: 0.5, default: 5, unit: '% budget', description: 'Share of the budget for the army. Scares rivals, but strong generals may try a takeover.' }
   ];
+  // how each policy reads inside a sentence ("Governor Leo cuts <phrase> in Mapleton ...")
+  var POLICY_PHRASE = {
+    income_tax_top: 'the tax on the rich', income_tax_base: 'income tax', wealth_tax: 'the wealth tax', corporate_tax: 'business tax',
+    vat: 'sales tax', carbon_tax: 'the pollution tax', ubi: 'free money for all', targeted_aid: 'help for the poor',
+    healthcare: 'healthcare spending', education: 'school spending', min_wage: 'the minimum wage', price_controls: 'price caps',
+    nationalisation: 'state ownership of business', tariffs: 'the import tax', money_printing: 'money printing',
+    audit_rate: 'tax and spending checks', transparency: 'open records', governor_salary: 'the governor\'s pay',
+    immigration_open: 'border openness', capital_controls: 'limits on moving money out', military_spending: 'army spending'
+  };
+  function phrase(pid) { return POLICY_PHRASE[pid] || lc(POLICY_MAP[pid].label); }
   var POLICY_MAP = {};
   POLICIES.forEach(function (p) { POLICY_MAP[p.id] = p; });
   var GOV_POLICIES = POLICIES.map(function (p) { return p.id; }).filter(function (id) { return id !== 'governor_salary'; });
@@ -147,49 +157,49 @@
 
   var SYSTEMS = {
     free_market: {
-      label: 'Free market',
+      label: 'Free market', short: 'Market',
       dials: { ownership: 0.1, allocation: 0.1, concentration: 0.3, oversight: 0.3 },
       policies: sysPolicies({ income_tax_top: 30, income_tax_base: 10, wealth_tax: 0, corporate_tax: 15, vat: 5, carbon_tax: 5, ubi: 0, targeted_aid: 3, healthcare: 25, education: 35, min_wage: 25, price_controls: false, nationalisation: 5, tariffs: 3, money_printing: 0, audit_rate: 5, transparency: 50, governor_salary: 3, immigration_open: 60, capital_controls: 0, military_spending: 6 }),
       safeguards: { charter: true, constitution: true, auditor: false, elections: true, freePress: true, termLimits: true },
       powers: GOV_POLICIES.slice(), misuse: ALL_MISUSE.slice(), coopShare: 0,
-      failureModes: ['inequality', 'monopoly', 'commons overuse', 'lobby capture'],
-      blurb: 'Private owners, market prices, light taxes. Fast and inventive; inequality, monopolies and overuse of shared resources build quietly.'
+      failureModes: ['a growing gap between rich and poor', 'a few giant companies', 'using up the shared forest and lake', 'the rich buying favours'],
+      blurb: 'Businesses are private. Prices decide who gets what.'
     },
     social_democracy: {
-      label: 'Social democracy',
+      label: 'Market + safety net', short: 'Safety net',
       dials: { ownership: 0.3, allocation: 0.3, concentration: 0.2, oversight: 0.7 },
       policies: sysPolicies({ income_tax_top: 50, income_tax_base: 20, wealth_tax: 1, corporate_tax: 25, vat: 15, carbon_tax: 30, ubi: 0, targeted_aid: 12, healthcare: 70, education: 70, min_wage: 50, price_controls: false, nationalisation: 20, tariffs: 5, money_printing: 0, audit_rate: 15, transparency: 75, governor_salary: 4, immigration_open: 45, capital_controls: 10, military_spending: 4 }),
       safeguards: { charter: true, constitution: true, auditor: true, elections: true, freePress: true, termLimits: true },
       powers: GOV_POLICIES.slice(), misuse: ALL_MISUSE.slice(), coopShare: 0,
-      failureModes: ['tax avoidance', 'capital flight', 'debt build-up', 'brain drain'],
-      blurb: 'Markets plus a big welfare state and strong institutions. Cohesive and trusted; high taxes invite avoidance, flight and debt.'
+      failureModes: ['the rich hiding income', 'rich people moving money abroad', 'growing debt', 'skilled people leaving'],
+      blurb: 'Businesses are private, but taxes pay for health, schools and help for the poor.'
     },
     market_socialism: {
-      label: 'Market socialism',
+      label: 'Public-owned firms', short: 'Public-owned',
       dials: { ownership: 0.6, allocation: 0.4, concentration: 0.35, oversight: 0.5 },
       policies: sysPolicies({ income_tax_top: 45, income_tax_base: 15, wealth_tax: 2, corporate_tax: 30, vat: 10, carbon_tax: 20, ubi: 0, targeted_aid: 10, healthcare: 60, education: 60, min_wage: 45, price_controls: false, nationalisation: 60, tariffs: 10, money_printing: 0, audit_rate: 10, transparency: 55, governor_salary: 3, immigration_open: 35, capital_controls: 40, military_spending: 5 }),
       safeguards: { charter: true, constitution: true, auditor: true, elections: true, freePress: false, termLimits: false },
       powers: GOV_POLICIES.slice(), misuse: ALL_MISUSE.slice(), coopShare: 0,
-      failureModes: ['soft budgets', 'insider capture of state firms', 'stagnation'],
-      blurb: 'State-owned firms competing in markets. Profits fund the treasury; insiders and soft budgets erode efficiency.'
+      failureModes: ['wasteful public firms', 'insiders taking the profits', 'slow growth'],
+      blurb: 'Most big firms belong to the public but still compete. Their profits pay for public services.'
     },
     central_planning: {
-      label: 'Central planning',
+      label: 'State-run', short: 'State-run',
       dials: { ownership: 0.95, allocation: 0.9, concentration: 0.85, oversight: 0.15 },
       policies: sysPolicies({ income_tax_top: 15, income_tax_base: 10, wealth_tax: 0, corporate_tax: 0, vat: 5, carbon_tax: 0, ubi: 0, targeted_aid: 5, healthcare: 60, education: 75, min_wage: 60, price_controls: true, nationalisation: 95, tariffs: 30, money_printing: 1, audit_rate: 5, transparency: 15, governor_salary: 2, immigration_open: 10, capital_controls: 90, military_spending: 12 }),
       safeguards: { charter: true, constitution: false, auditor: false, elections: false, freePress: false, termLimits: false },
       powers: POLICIES.map(function (p) { return p.id; }), misuse: ALL_MISUSE.slice(), coopShare: 0,
-      failureModes: ['misallocation from hidden needs', 'shortages', 'power concentration', 'misreporting'],
-      blurb: 'The plan sets output and prices. Full employment and fast early investment; hidden needs, shortages and unchecked power pile up.'
+      failureModes: ['goods sent to the wrong place', 'empty shelves', 'too much power in one office', 'faked numbers'],
+      blurb: 'The government owns almost everything. Planners decide what gets made and what it costs.'
     },
     cooperative: {
-      label: 'Cooperative commonwealth',
+      label: 'Self-run co-op', short: 'Co-op',
       dials: { ownership: 0.5, allocation: 0.35, concentration: 0.05, oversight: 0.85 },
       policies: sysPolicies({ income_tax_top: 35, income_tax_base: 15, wealth_tax: 1, corporate_tax: 15, vat: 10, carbon_tax: 40, ubi: 5, targeted_aid: 8, healthcare: 55, education: 55, min_wage: 40, price_controls: false, nationalisation: 10, tariffs: 5, money_printing: 0, audit_rate: 20, transparency: 90, governor_salary: 1, immigration_open: 40, capital_controls: 20, military_spending: 3 }),
       safeguards: { charter: true, constitution: true, auditor: true, elections: true, freePress: true, termLimits: true },
       powers: [], misuse: ['skim', 'misreport'], coopShare: 0.6,
-      failureModes: ['free riding', 'slow decisions', 'under-investment'],
-      blurb: 'Worker-owned firms and a citizens\' assembly; the governor only coordinates. Equal and trusted; free riding and slow decisions hold it back.'
+      failureModes: ['people slacking off', 'slow decisions', 'too little saved for the future'],
+      blurb: 'Workers own their firms and people vote on the rules. The governor only keeps things running.'
     }
   };
 
@@ -198,28 +208,30 @@
   var DEFAULT_BRAIN = { aligned_ai: 'rules_aligned_ai', human_persona: 'rules_human_persona', human_player: 'human_player' };
   var ALIGNED_TRAITS = { greed: 0.05, ambition: 0.1, honesty: 0.95, fairness: 0.9 };
 
+  var GOVERNOR_LABELS = { aligned_ai: 'AI governor', human_persona: 'Human-like governor', human_player: 'You' };
+
   var METRICS = [
-    { id: 'gdp', label: 'Output', unit: 'per round', better: 'up', format: 'money' },
-    { id: 'gdpPerCapita', label: 'Output per person', unit: 'per round', better: 'up', format: 'money' },
-    { id: 'welfare', label: 'Welfare', unit: '0-100', better: 'up', format: 'index' },
-    { id: 'gini', label: 'Inequality (Gini)', unit: '0-1', better: 'down', format: 'ratio' },
-    { id: 'wealthGini', label: 'Wealth inequality', unit: '0-1', better: 'down', format: 'ratio' },
-    { id: 'poverty', label: 'Poverty', unit: '%', better: 'down', format: 'pct' },
-    { id: 'unemployment', label: 'Unemployment', unit: '%', better: 'down', format: 'pct' },
-    { id: 'inflation', label: 'Inflation', unit: '% a year', better: 'down', format: 'pct' },
-    { id: 'corruption', label: 'Corruption', unit: '0-100', better: 'down', format: 'index' },
-    { id: 'trust', label: 'Trust', unit: '0-100', better: 'up', format: 'index' },
-    { id: 'honestyGap', label: 'Honesty gap', unit: '0-100', better: 'down', format: 'index' },
-    { id: 'powerIndex', label: 'Power concentration', unit: '0-100', better: 'down', format: 'index' },
-    { id: 'population', label: 'Population', unit: 'people', better: null, format: 'int' },
-    { id: 'emigrated', label: 'Emigrated (total)', unit: 'people', better: 'down', format: 'int' },
-    { id: 'protestRate', label: 'Protesting', unit: '%', better: 'down', format: 'pct' },
-    { id: 'taxRevenue', label: 'Revenue', unit: 'per round', better: null, format: 'money' },
-    { id: 'priceLevel', label: 'Price level', unit: 'x start', better: null, format: 'num' },
-    { id: 'shortage', label: 'Shortages', unit: '%', better: 'down', format: 'pct' },
-    { id: 'avoidance', label: 'High earners hiding income', unit: '%', better: 'down', format: 'pct' },
-    { id: 'capitalFlight', label: 'Capital moved abroad (total)', unit: 'money', better: 'down', format: 'money' },
-    { id: 'debtRatio', label: 'Debt', unit: '% of yearly output', better: 'down', format: 'pct' }
+    { id: 'gdp', label: 'Economy size', unit: 'per round', better: 'up', format: 'money', help: 'Everything the country makes in 3 months.' },
+    { id: 'gdpPerCapita', label: 'Output per person', unit: 'per round', better: 'up', format: 'money', help: 'What the country makes, split across everyone.' },
+    { id: 'welfare', label: 'Wellbeing', unit: '0-100', better: 'up', format: 'index', help: 'How well people live: food, health, jobs and safety.' },
+    { id: 'gini', label: 'Inequality', unit: '0-1', better: 'down', format: 'ratio', help: 'The gap between rich and poor. 0 means everyone is equal.' },
+    { id: 'wealthGini', label: 'Wealth gap', unit: '0-1', better: 'down', format: 'ratio', help: 'How unevenly savings and property are shared. 0 means equal.' },
+    { id: 'poverty', label: 'Poverty', unit: '%', better: 'down', format: 'pct', help: 'Share of people living on far less than most.' },
+    { id: 'unemployment', label: 'Out of work', unit: '%', better: 'down', format: 'pct', help: 'Share of workers who want a job but have none.' },
+    { id: 'inflation', label: 'Price rises', unit: '% a year', better: 'down', format: 'pct', help: 'How fast prices are going up, per year.' },
+    { id: 'corruption', label: 'Corruption', unit: '0-100', better: 'down', format: 'index', help: 'How much bribery and stealing goes on in government.' },
+    { id: 'trust', label: 'Trust', unit: '0-100', better: 'up', format: 'index', help: 'How much people trust their government.' },
+    { id: 'honestyGap', label: 'Lies', unit: '0-100', better: 'down', format: 'index', help: 'How far the official numbers are from the truth.' },
+    { id: 'powerIndex', label: 'Power grab', unit: '0-100', better: 'down', format: 'index', help: 'How much power sits with the governor instead of courts, press and voters.' },
+    { id: 'population', label: 'Population', unit: 'people', better: null, format: 'int', help: 'How many people live here now.' },
+    { id: 'emigrated', label: 'People who left', unit: 'people', better: 'down', format: 'int', help: 'How many people have moved away since the start.' },
+    { id: 'protestRate', label: 'Protesting', unit: '%', better: 'down', format: 'pct', help: 'Share of people out protesting right now.' },
+    { id: 'taxRevenue', label: 'Tax income', unit: 'per round', better: null, format: 'money', help: 'Money the government collects in 3 months.' },
+    { id: 'priceLevel', label: 'Prices', unit: 'x start', better: null, format: 'num', help: 'Prices now compared with the start. 2 means double.' },
+    { id: 'shortage', label: 'Empty shelves', unit: '%', better: 'down', format: 'pct', help: 'Share of goods people cannot find in shops.' },
+    { id: 'avoidance', label: 'Rich hiding income', unit: '%', better: 'down', format: 'pct', help: 'Share of high earners hiding part of their income from tax.' },
+    { id: 'capitalFlight', label: 'Money moved abroad', unit: 'money', better: 'down', format: 'money', help: 'Total savings the rich have moved to other countries.' },
+    { id: 'debtRatio', label: 'Debt', unit: '% of yearly output', better: 'down', format: 'pct', help: 'What the government owes, compared with a year of the economy.' }
   ];
 
   var EVENT_TYPES = [
@@ -234,22 +246,29 @@
     'diplomatic_protest', 'sanctions', 'mobilisation', 'threat', 'nuclear_strike', 'deescalation', 'collapse', 'game_over'
   ];
 
-  var NATION_NAMES = ['Aurelia', 'Kestrel Union', 'Veridia', 'Norhaven', 'Sable Coast'];
-  var AI_NAMES = ['ARBITER-1', 'STEWARD-7', 'CANDOR-3', 'LEDGER-9', 'MERIDIAN-2'];
-  var GOV_FIRST = ['Vessa', 'Orin', 'Talia', 'Brannoc', 'Mireille', 'Dov', 'Sefa', 'Juno', 'Calder', 'Ilse', 'Rook', 'Aldis', 'Petra', 'Hal', 'Corvin', 'Lisandra', 'Teodor', 'Ysolde'];
-  var GOV_LAST = ['Ashgrove', 'Velloran', 'Quistain', 'Marrowby', 'Cadwell', 'Thorne', 'Tessaly', 'Brannick', 'Holloway', 'Strand', 'Vey', 'Kettering', 'Morrow', 'Halvard', 'Sarrow', 'Oakhurst'];
-  var CIT_FIRST = ['Amira', 'Bao', 'Cato', 'Dara', 'Esme', 'Farid', 'Gita', 'Hollis', 'Ines', 'Jun', 'Kofi', 'Lena', 'Mati', 'Nadia', 'Oren', 'Priya', 'Quinn', 'Rafa', 'Suri', 'Tomas', 'Uma', 'Vik', 'Wren', 'Xin', 'Yara', 'Zane', 'Ayu', 'Bilal', 'Chen', 'Dewi', 'Emeka', 'Faye', 'Hana', 'Ivo', 'Kira', 'Luca', 'Mei', 'Nico', 'Odile', 'Pax'];
+  // nations: names, map emblems and colour keys go together by nation index (n1..n5), so the
+  // audience learns "Sunbay = sun = gold" once and it holds in every scenario
+  var NATION_NAMES = ['Sunbay', 'Mapleton', 'Stonehill', 'Pinevale', 'Coralport'];
+  var NATION_EMBLEMS = ['sun', 'leaf', 'mountain', 'tree', 'shell'];
+  var NATION_COLORS = ['gold', 'teal', 'rose', 'violet', 'moss'];
+  // governors: short, memorable, never numbered. Names are not reused in a run until a pool runs out.
+  var AI_NAMES = ['Bolt', 'Nova', 'Chip', 'Echo', 'Pixel', 'Spark', 'Byte', 'Orbit'];
+  var GOV_NAMES = ['Maya', 'Leo', 'Sara', 'Omar', 'Nina', 'Ben', 'Tara', 'Ivan', 'Lily', 'Sam', 'Zoe', 'Raj', 'Emma', 'Kai', 'Ana', 'Tom', 'Mei', 'Noah', 'Aya', 'Max'];
+  // citizens (also lobbyists): first names only; an initial is added only to tell two people apart
+  var CIT_FIRST = ['Amir', 'Bao', 'Carla', 'Dara', 'Elif', 'Farid', 'Gita', 'Hugo', 'Ines', 'Jun', 'Kofi', 'Lena', 'Mateo', 'Nadia', 'Oscar', 'Priya', 'Quinn', 'Rosa', 'Suri', 'Tomas',
+    'Uma', 'Victor', 'Wen', 'Xin', 'Yara', 'Zane', 'Ayu', 'Bilal', 'Chen', 'Dewi', 'Emeka', 'Faye', 'Hana', 'Ivo', 'Kira', 'Luca', 'Mina', 'Nico', 'Olga', 'Paul',
+    'Ali', 'Bea', 'Cruz', 'Dina', 'Eli', 'Fatima', 'Gus', 'Hiro', 'Isla', 'Jamal', 'Kim', 'Lola', 'Malik', 'Nell', 'Otto', 'Pia', 'Rami', 'Sofia', 'Teo', 'Una',
+    'Vera', 'Wade', 'Yusuf', 'Zara', 'Adam', 'Bella', 'Cody', 'Diego', 'Eva', 'Femi', 'Grace', 'Hassan', 'Iris', 'Jade', 'Kenji', 'Laila', 'Mo', 'Nora', 'Pablo', 'Ruby'];
   var CIT_INIT = 'ABCDEFGHJKLMNPRSTVW';
-
   // citizen decisions are static objects (frozen) to keep the hot loop allocation-light
   function freezeD(d) { d.options.forEach(Object.freeze); Object.freeze(d.options); return Object.freeze(d); }
-  var D_WORK = freezeD({ kind: 'citizen_work', prompt: 'How hard do you work this round?', options: [{ id: 'full', label: 'Full effort' }, { id: 'reduced', label: 'Ease off' }, { id: 'minimal', label: 'Bare minimum' }], defaultOption: 'full' });
-  var D_REPORT = freezeD({ kind: 'citizen_report', prompt: 'Declare all your income to the tax office?', options: [{ id: 'declare', label: 'Declare everything' }, { id: 'hide', label: 'Hide part of it' }], defaultOption: 'declare' });
-  var D_CAPITAL = freezeD({ kind: 'citizen_capital', prompt: 'Keep your capital at home or move some abroad?', options: [{ id: 'keep', label: 'Keep it here' }, { id: 'move', label: 'Move 10% abroad' }], defaultOption: 'keep' });
-  var D_NEED = freezeD({ kind: 'citizen_need', prompt: 'Report your household needs to the planning office.', options: [{ id: 'truthful', label: 'Report truthfully' }, { id: 'inflate', label: 'Inflate your needs' }], defaultOption: 'truthful' });
+  var D_WORK = freezeD({ kind: 'citizen_work', prompt: 'How hard do you work this round?', options: [{ id: 'full', label: 'Work hard' }, { id: 'reduced', label: 'Ease off' }, { id: 'minimal', label: 'Do the bare minimum' }], defaultOption: 'full' });
+  var D_REPORT = freezeD({ kind: 'citizen_report', prompt: 'Tell the tax office about all your income?', options: [{ id: 'declare', label: 'Tell them everything' }, { id: 'hide', label: 'Hide some of it' }], defaultOption: 'declare' });
+  var D_CAPITAL = freezeD({ kind: 'citizen_capital', prompt: 'Keep your savings here or move some abroad?', options: [{ id: 'keep', label: 'Keep it here' }, { id: 'move', label: 'Move a tenth abroad' }], defaultOption: 'keep' });
+  var D_NEED = freezeD({ kind: 'citizen_need', prompt: 'Tell the planners what your home needs.', options: [{ id: 'truthful', label: 'Tell the truth' }, { id: 'inflate', label: 'Ask for more than you need' }], defaultOption: 'truthful' });
   var D_PROTEST = freezeD({ kind: 'citizen_protest', prompt: 'Join the protests this round?', options: [{ id: 'stay_home', label: 'Stay home' }, { id: 'protest', label: 'Protest' }], defaultOption: 'stay_home' });
-  var D_VOTE = freezeD({ kind: 'citizen_vote', prompt: 'Election day. Who gets your vote?', options: [{ id: 'incumbent', label: 'Re-elect the governor' }, { id: 'challenger', label: 'Vote for the challenger' }], defaultOption: 'incumbent' });
-  var D_MIGRATE = freezeD({ kind: 'citizen_migrate', prompt: 'Life looks better abroad. Leave?', options: [{ id: 'stay', label: 'Stay' }, { id: 'leave', label: 'Emigrate' }], defaultOption: 'stay' });
+  var D_VOTE = freezeD({ kind: 'citizen_vote', prompt: 'Election day. Who gets your vote?', options: [{ id: 'incumbent', label: 'Keep the governor' }, { id: 'challenger', label: 'Vote for someone new' }], defaultOption: 'incumbent' });
+  var D_MIGRATE = freezeD({ kind: 'citizen_migrate', prompt: 'Life looks better abroad. Leave?', options: [{ id: 'stay', label: 'Stay' }, { id: 'leave', label: 'Move abroad' }], defaultOption: 'stay' });
 
   // ============================================================================ brains
   var BRAINS = {};
@@ -514,12 +533,12 @@
       world: defaultWorld(),
       traitMix: { selfInterestedShare: 0.25 },
       nations: [
-        { id: 'n1', name: 'Aurelia', system: 'social_democracy', population: 60, nuclear: false,
-          governor: { type: 'aligned_ai', name: 'ARBITER-1', goal: 'welfare', traits: { greed: 0.05, ambition: 0.1, honesty: 0.95, fairness: 0.9 } }, policies: {}, safeguards: {} },
-        { id: 'n2', name: 'Kestrel Union', system: 'free_market', population: 60, nuclear: false,
-          governor: { type: 'human_persona', name: 'Dov Ashgrove', goal: 'growth', traits: { greed: 0.55, ambition: 0.6, honesty: 0.45, fairness: 0.35 } }, policies: {}, safeguards: {} },
-        { id: 'n3', name: 'Veridia', system: 'central_planning', population: 60, nuclear: false,
-          governor: { type: 'human_persona', name: 'Ilse Marrowby', goal: 'stay_in_power', traits: { greed: 0.4, ambition: 0.8, honesty: 0.35, fairness: 0.4 } }, policies: {}, safeguards: {} }
+        { id: 'n1', name: 'Sunbay', system: 'social_democracy', population: 60, nuclear: false,
+          governor: { type: 'aligned_ai', name: 'Bolt', goal: 'welfare', traits: { greed: 0.05, ambition: 0.1, honesty: 0.95, fairness: 0.9 } }, policies: {}, safeguards: {} },
+        { id: 'n2', name: 'Mapleton', system: 'free_market', population: 60, nuclear: false,
+          governor: { type: 'human_persona', name: 'Leo', goal: 'growth', traits: { greed: 0.55, ambition: 0.6, honesty: 0.45, fairness: 0.35 } }, policies: {}, safeguards: {} },
+        { id: 'n3', name: 'Stonehill', system: 'central_planning', population: 60, nuclear: false,
+          governor: { type: 'human_persona', name: 'Maya', goal: 'stay_in_power', traits: { greed: 0.4, ambition: 0.8, honesty: 0.35, fairness: 0.4 } }, policies: {}, safeguards: {} }
       ]
     };
   }
@@ -529,7 +548,24 @@
     if (selfish) return { greed: r4(uni(R, 0.6, 0.95)), ambition: r4(uni(R, 0.5, 0.95)), honesty: r4(uni(R, 0.1, 0.45)), fairness: r4(uni(R, 0.1, 0.4)) };
     return { greed: r4(uni(R, 0.1, 0.45)), ambition: r4(uni(R, 0.2, 0.7)), honesty: r4(uni(R, 0.45, 0.9)), fairness: r4(uni(R, 0.4, 0.85)) };
   }
-  function personaName(R) { return pick(R, GOV_FIRST) + ' ' + pick(R, GOV_LAST); }
+  // Draw a name from a pool with the seeded PRNG. Always uses exactly two draws (the budget the old
+  // "first + last name" pick used), so naming never shifts the random stream the economy runs on.
+  // Skips names already used this run; once the pool is exhausted, skips only names in use right now.
+  function drawName(R, pool, used, alive) {
+    var a = rngNext(R); rngNext(R);
+    var free = pool.filter(function (x) { return used.indexOf(x) < 0; });
+    if (!free.length) free = pool.filter(function (x) { return alive.indexOf(x) < 0; });
+    if (!free.length) free = pool;
+    return free[Math.floor(a * free.length) % free.length];
+  }
+  // AI governors take the next unused robot name after `from` in the pool (no randomness)
+  function nextAiName(start, used, alive) {
+    var k, nm;
+    for (k = 0; k < AI_NAMES.length; k++) { nm = AI_NAMES[(start + k) % AI_NAMES.length]; if (used.indexOf(nm) < 0) return nm; }
+    for (k = 0; k < AI_NAMES.length; k++) { nm = AI_NAMES[(start + k) % AI_NAMES.length]; if (alive.indexOf(nm) < 0) return nm; }
+    return AI_NAMES[start % AI_NAMES.length];
+  }
+  function personaName(R, used, alive) { return drawName(R, GOV_NAMES, used || [], alive || used || []); }
   function defaultGoal(type, t) {
     if (type === 'aligned_ai') return 'welfare';
     if (t.ambition > 0.65) return 'stay_in_power';
@@ -563,6 +599,9 @@
     out.traitMix.selfInterestedShare = clamp01(fin(out.traitMix.selfInterestedShare, 0.25));
     var R = { rng: hashSeed(String(out.seed) + '|config') };
     var list = Array.isArray(c.nations) && c.nations.length ? c.nations : base.nations;
+    // names given in the config are reserved first, so generated names never clash with them
+    var taken = [];
+    list.slice(0, 5).forEach(function (nc) { if (nc && nc.governor && typeof nc.governor.name === 'string' && nc.governor.name) taken.push(nc.governor.name); });
     list.slice(0, 5).forEach(function (nc, i) {
       nc = nc || {};
       var sysId = SYSTEMS[nc.system] ? nc.system : 'social_democracy';
@@ -578,11 +617,14 @@
       var type = GOVERNOR_TYPES.indexOf(g.type) >= 0 ? g.type : 'aligned_ai';
       var fallback = type === 'aligned_ai' ? ALIGNED_TRAITS : type === 'human_player' ? { greed: 0.5, ambition: 0.5, honesty: 0.5, fairness: 0.5 } : null;
       var traits = g.traits ? normTraits(g.traits, fallback || samplePersonaTraits(R, out.traitMix)) : (fallback ? Object.assign({}, fallback) : samplePersonaTraits(R, out.traitMix));
-      var name = typeof g.name === 'string' && g.name ? g.name : (type === 'aligned_ai' ? AI_NAMES[i % AI_NAMES.length] : type === 'human_player' ? 'You' : personaName(R));
+      var name = typeof g.name === 'string' && g.name ? g.name : (type === 'aligned_ai' ? nextAiName(i, taken, taken) : type === 'human_player' ? 'You' : personaName(R, taken));
+      if (taken.indexOf(name) < 0) taken.push(name);
       var goal = GOALS.indexOf(g.goal) >= 0 ? g.goal : defaultGoal(type, traits);
       out.nations.push({
         id: typeof nc.id === 'string' && nc.id ? nc.id : 'n' + (i + 1),
         name: typeof nc.name === 'string' && nc.name ? nc.name : NATION_NAMES[i % NATION_NAMES.length],
+        emblem: NATION_EMBLEMS[i % NATION_EMBLEMS.length],
+        colorKey: NATION_COLORS[i % NATION_COLORS.length],
         system: sysId,
         population: clamp(int(nc.population || 60), 8, 300),
         nuclear: !!nc.nuclear,
@@ -604,69 +646,69 @@
   }
   var SCENARIOS = [
     {
-      id: 'three_systems', title: 'Three systems, one world',
-      hook: 'Same people, same planet, three rulebooks. Which one cracks first?',
-      description: 'A social democracy run by an aligned AI, a free market run by a growth-hungry politician, and a planned economy run by a ruler who wants to stay. Commons, migration, lobbying and elections all on.',
+      id: 'three_systems', title: 'Three countries, three rulebooks',
+      hook: 'Same people, three different rulebooks. Which country cracks first?',
+      description: 'Sunbay has a market with a safety net, run by an AI. Mapleton is a free market run by a governor chasing growth. Stonehill is state-run by a governor who wants to stay forever.',
       config: defaultConfig()
     },
     {
-      id: 'tax_the_rich_90', title: 'Tax the rich at 90%',
-      hook: 'A 90% top rate. Does the money come in, or walk out the door?',
-      description: 'Aurelia sets a 90% top rate and a 5% wealth tax with open borders and no capital controls. Kestrel Union keeps 45%. Veridia also taxes at 90% but locks capital in. Tax rates are locked so the governors cannot undo the experiment.',
+      id: 'tax_the_rich_90', title: 'Tax the rich 90%: what happens?',
+      hook: 'A 90% tax on the rich. Does the money come in, or walk out the door?',
+      description: 'Sunbay taxes the rich at 90% and lets money leave freely. Mapleton keeps the tax at 45%. Stonehill also taxes at 90% but stops money leaving. Nobody can change these rules.',
       config: scen([
-        { id: 'n1', name: 'Aurelia', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'ARBITER-1', goal: 'equality' }, policies: { income_tax_top: 90, wealth_tax: 5, capital_controls: 0, immigration_open: 80 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] },
-        { id: 'n2', name: 'Kestrel Union', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'STEWARD-7', goal: 'equality' }, policies: { income_tax_top: 45, wealth_tax: 1, capital_controls: 0, immigration_open: 80 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] },
-        { id: 'n3', name: 'Veridia', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'CANDOR-3', goal: 'equality' }, policies: { income_tax_top: 90, wealth_tax: 5, capital_controls: 85, immigration_open: 30 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] }
+        { id: 'n1', name: 'Sunbay', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Bolt', goal: 'equality' }, policies: { income_tax_top: 90, wealth_tax: 5, capital_controls: 0, immigration_open: 80 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] },
+        { id: 'n2', name: 'Mapleton', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Nova', goal: 'equality' }, policies: { income_tax_top: 45, wealth_tax: 1, capital_controls: 0, immigration_open: 80 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] },
+        { id: 'n3', name: 'Stonehill', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Chip', goal: 'equality' }, policies: { income_tax_top: 90, wealth_tax: 5, capital_controls: 85, immigration_open: 30 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] }
       ], { escalation: false })
     },
     {
-      id: 'ubi_experiment', title: 'The UBI experiment',
-      hook: 'Free money for everyone. Paid for by taxes, by the printing press, or not at all.',
-      description: 'Aurelia pays a 30% UBI funded by higher taxes. Kestrel Union pays the same UBI by printing money. Norhaven pays none. UBI, printing and the main taxes are locked.',
+      id: 'ubi_experiment', title: 'Free money for everyone: who pays?',
+      hook: 'Everyone gets free cash. Paid for by taxes, by printing money, or not at all.',
+      description: 'Sunbay gives everyone free money and raises taxes to pay for it. Mapleton pays the same by printing money. Stonehill pays nothing. Nobody can change these rules.',
       config: scen([
-        { id: 'n1', name: 'Aurelia', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'ARBITER-1', goal: 'welfare' }, policies: { ubi: 30, income_tax_top: 55, income_tax_base: 28, vat: 18, money_printing: 0 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] },
-        { id: 'n2', name: 'Kestrel Union', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'STEWARD-7', goal: 'welfare' }, policies: { ubi: 30, money_printing: 10 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] },
-        { id: 'n3', name: 'Norhaven', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'CANDOR-3', goal: 'welfare' }, policies: { ubi: 0, money_printing: 0 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] }
+        { id: 'n1', name: 'Sunbay', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Bolt', goal: 'welfare' }, policies: { ubi: 30, income_tax_top: 55, income_tax_base: 28, vat: 18, money_printing: 0 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] },
+        { id: 'n2', name: 'Mapleton', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Nova', goal: 'welfare' }, policies: { ubi: 30, money_printing: 10 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] },
+        { id: 'n3', name: 'Stonehill', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Chip', goal: 'welfare' }, policies: { ubi: 0, money_printing: 0 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] }
       ], { escalation: false })
     },
     {
-      id: 'who_corrupts_first', title: 'Who corrupts first?',
-      hook: 'An AI and two politicians. Same system, same lobbyists, same envelopes.',
-      description: 'Three free-market nations with no independent auditor and lobbying on. An aligned AI, a greedy persona and a moderate persona face the same bribe offers.',
+      id: 'who_corrupts_first', title: 'Who takes the first bribe?',
+      hook: 'One AI and two human-like governors. Same rich lobbyists, same envelopes of cash.',
+      description: 'Three free-market countries with no government inspectors. An AI governor, a greedy governor and a fairly honest one get the same bribe offers.',
       config: scen([
-        { id: 'n1', name: 'Aurelia', system: 'free_market', governor: { type: 'aligned_ai', name: 'ARBITER-1', goal: 'growth' }, safeguards: { auditor: false } },
-        { id: 'n2', name: 'Kestrel Union', system: 'free_market', governor: { type: 'human_persona', name: 'Corvin Thorne', goal: 'growth', traits: { greed: 0.85, ambition: 0.7, honesty: 0.2, fairness: 0.3 } }, safeguards: { auditor: false } },
-        { id: 'n3', name: 'Sable Coast', system: 'free_market', governor: { type: 'human_persona', name: 'Petra Holloway', goal: 'growth', traits: { greed: 0.35, ambition: 0.45, honesty: 0.65, fairness: 0.6 } }, safeguards: { auditor: false } }
+        { id: 'n1', name: 'Sunbay', system: 'free_market', governor: { type: 'aligned_ai', name: 'Bolt', goal: 'growth' }, safeguards: { auditor: false } },
+        { id: 'n2', name: 'Mapleton', system: 'free_market', governor: { type: 'human_persona', name: 'Max', goal: 'growth', traits: { greed: 0.85, ambition: 0.7, honesty: 0.2, fairness: 0.3 } }, safeguards: { auditor: false } },
+        { id: 'n3', name: 'Stonehill', system: 'free_market', governor: { type: 'human_persona', name: 'Sara', goal: 'growth', traits: { greed: 0.35, ambition: 0.45, honesty: 0.65, fairness: 0.6 } }, safeguards: { auditor: false } }
       ], { lobbying: true, escalation: false })
     },
     {
-      id: 'refuses_to_leave', title: 'The one who refused to leave',
-      hook: 'Elections in eight rounds. Trust is already on the floor.',
-      description: 'Three governments start deeply distrusted with elections due. Ambitious personas, and one nation without a constitution. Watch who concedes.',
+      id: 'refuses_to_leave', title: 'The governor who would not leave',
+      hook: 'An election in two years. Trust is already on the floor.',
+      description: 'All three governments start with very low trust and an election coming. Two power-hungry governors, and one country with no constitution. Who accepts defeat?',
       config: scen([
-        { id: 'n1', name: 'Norhaven', system: 'market_socialism', governor: { type: 'human_persona', name: 'Brannoc Vey', goal: 'stay_in_power', traits: { greed: 0.6, ambition: 0.9, honesty: 0.25, fairness: 0.25 } }, safeguards: { constitution: false, freePress: false }, initial: { trust: 28 }, policies: { military_spending: 10 } },
-        { id: 'n2', name: 'Aurelia', system: 'social_democracy', governor: { type: 'human_persona', name: 'Mireille Strand', goal: 'stay_in_power', traits: { greed: 0.45, ambition: 0.8, honesty: 0.4, fairness: 0.35 } }, initial: { trust: 30 } },
-        { id: 'n3', name: 'Sable Coast', system: 'free_market', governor: { type: 'aligned_ai', name: 'CANDOR-3', goal: 'welfare' }, safeguards: { constitution: false, auditor: false, freePress: false }, initial: { trust: 30 } }
+        { id: 'n1', name: 'Sunbay', system: 'market_socialism', governor: { type: 'human_persona', name: 'Ivan', goal: 'stay_in_power', traits: { greed: 0.6, ambition: 0.9, honesty: 0.25, fairness: 0.25 } }, safeguards: { constitution: false, freePress: false }, initial: { trust: 28 }, policies: { military_spending: 10 } },
+        { id: 'n2', name: 'Mapleton', system: 'social_democracy', governor: { type: 'human_persona', name: 'Nina', goal: 'stay_in_power', traits: { greed: 0.45, ambition: 0.8, honesty: 0.4, fairness: 0.35 } }, initial: { trust: 30 } },
+        { id: 'n3', name: 'Stonehill', system: 'free_market', governor: { type: 'aligned_ai', name: 'Chip', goal: 'welfare' }, safeguards: { constitution: false, auditor: false, freePress: false }, initial: { trust: 30 } }
       ], { coups: true })
     },
     {
-      id: 'red_button', title: 'The red button',
-      hook: 'Three nuclear powers, one border crisis, and leaders who hate backing down.',
-      description: 'All three nations are nuclear. A border dispute between Aurelia and Kestrel Union has tension at 60 from round one, and a resource shock hits in year five. Escalation is on.',
+      id: 'red_button', title: 'Who presses the red button?',
+      hook: 'Three nuclear powers, one border fight, and leaders who hate backing down.',
+      description: 'All three countries have nuclear weapons. Sunbay and Mapleton start with a tense border fight. A disaster hits in year five.',
       config: scen([
-        { id: 'n1', name: 'Aurelia', system: 'free_market', nuclear: true, governor: { type: 'human_persona', name: 'Calder Halvard', goal: 'stay_in_power', traits: { greed: 0.4, ambition: 0.85, honesty: 0.35, fairness: 0.25 } }, policies: { military_spending: 12, tariffs: 15 } },
-        { id: 'n2', name: 'Kestrel Union', system: 'central_planning', nuclear: true, governor: { type: 'human_persona', name: 'Ysolde Kettering', goal: 'stay_in_power', traits: { greed: 0.35, ambition: 0.9, honesty: 0.3, fairness: 0.2 } }, policies: { military_spending: 16 } },
-        { id: 'n3', name: 'Veridia', system: 'social_democracy', nuclear: true, governor: { type: 'aligned_ai', name: 'MERIDIAN-2', goal: 'welfare' } }
+        { id: 'n1', name: 'Sunbay', system: 'free_market', nuclear: true, governor: { type: 'human_persona', name: 'Omar', goal: 'stay_in_power', traits: { greed: 0.4, ambition: 0.85, honesty: 0.35, fairness: 0.25 } }, policies: { military_spending: 12, tariffs: 15 } },
+        { id: 'n2', name: 'Mapleton', system: 'central_planning', nuclear: true, governor: { type: 'human_persona', name: 'Tara', goal: 'stay_in_power', traits: { greed: 0.35, ambition: 0.9, honesty: 0.3, fairness: 0.2 } }, policies: { military_spending: 16 } },
+        { id: 'n3', name: 'Stonehill', system: 'social_democracy', nuclear: true, governor: { type: 'aligned_ai', name: 'Chip', goal: 'welfare' } }
       ], { escalation: true, scarcityShockRound: 20, initialTension: { 'n1|n2': 60, 'n1|n3': 20, 'n2|n3': 25 } })
     },
     {
       id: 'play_governor', title: 'You are the governor',
-      hook: 'You run Aurelia. Budgets, bribes, crises and elections land on your desk.',
-      description: 'You govern Aurelia as a human player: set policies in the Policies tab and answer decisions as they arrive. An AI and a politician run the neighbours.',
+      hook: 'You run Sunbay. Budgets, bribes, crises and elections land on your desk.',
+      description: 'You run Sunbay. Change the rules in the Policies tab and answer decisions as they come. An AI and a human-like governor run the neighbours.',
       config: scen([
-        { id: 'n1', name: 'Aurelia', system: 'social_democracy', governor: { type: 'human_player', name: 'You', goal: 'welfare' } },
-        { id: 'n2', name: 'Kestrel Union', system: 'free_market', governor: { type: 'human_persona', name: 'Dov Ashgrove', goal: 'growth', traits: { greed: 0.55, ambition: 0.6, honesty: 0.45, fairness: 0.35 } } },
-        { id: 'n3', name: 'Norhaven', system: 'cooperative', governor: { type: 'aligned_ai', name: 'STEWARD-7', goal: 'equality' } }
+        { id: 'n1', name: 'Sunbay', system: 'social_democracy', governor: { type: 'human_player', name: 'You', goal: 'welfare' } },
+        { id: 'n2', name: 'Mapleton', system: 'free_market', governor: { type: 'human_persona', name: 'Leo', goal: 'growth', traits: { greed: 0.55, ambition: 0.6, honesty: 0.45, fairness: 0.35 } } },
+        { id: 'n3', name: 'Stonehill', system: 'cooperative', governor: { type: 'aligned_ai', name: 'Chip', goal: 'equality' } }
       ])
     }
   ];
@@ -687,7 +729,7 @@
     for (var k2 in t) t[k2] = r4(t[k2]);
     var skill = cls === 'worker' ? 0.45 + 0.95 * Math.pow(rngNext(S), 1.4) : cls === 'owner' ? uni(S, 1.0, 1.5) : uni(S, 1.2, 1.6);
     var wealth = cls === 'worker' ? uni(S, 1, 4) : cls === 'owner' ? uni(S, 12, 24) : uni(S, 50, 90);
-    var name = typeof opts.name === 'string' && opts.name.trim() ? opts.name.trim().slice(0, 40) : pick(S, CIT_FIRST) + ' ' + CIT_INIT[Math.floor(rngNext(S) * CIT_INIT.length) % CIT_INIT.length] + '.';
+    var name = typeof opts.name === 'string' && opts.name.trim() ? opts.name.trim().slice(0, 40) : citizenName(S, nation, pick(S, CIT_FIRST), Math.floor(rngNext(S) * CIT_INIT.length) % CIT_INIT.length);
     var need = uni(S, 0.7, 1.3);
     return {
       id: 'c' + (++S.counters.citizen), name: name, cls: cls,
@@ -697,6 +739,20 @@
       isFollower: !!opts.isFollower, ownerId: opts.ownerId == null ? null : String(opts.ownerId),
       traits: t, homeNationId: nation.id, protestedOnce: false
     };
+  }
+
+  // "Ayu" if nobody alive has that name, else "Ayu K." (the drawn initial first, then the next free one)
+  function citizenName(S, nation, first, initIdx) {
+    var taken = {};
+    var add = function (list) { for (var i = 0; i < list.length; i++) taken[list[i].name] = true; };
+    for (var i = 0; i < S.nations.length; i++) if (S.nations[i] !== nation) add(S.nations[i].citizens);
+    add(nation.citizens);
+    if (!taken[first]) return first;
+    for (var k = 0; k < CIT_INIT.length; k++) {
+      var nm = first + ' ' + CIT_INIT[(initIdx + k) % CIT_INIT.length] + '.';
+      if (!taken[nm]) return nm;
+    }
+    return first + ' ' + CIT_INIT[initIdx] + '.';
   }
 
   function blankMetrics(trust) {
@@ -716,7 +772,7 @@
   function initNation(S, cfg, nc) {
     var sys = SYSTEMS[nc.system];
     var n = {
-      id: nc.id, name: nc.name, system: nc.system, dials: Object.assign({}, sys.dials), alive: true, nuclear: nc.nuclear,
+      id: nc.id, name: nc.name, emblem: nc.emblem, colorKey: nc.colorKey, system: nc.system, dials: Object.assign({}, sys.dials), alive: true, nuclear: nc.nuclear,
       treasury: 8, debt: 0,
       governor: makeGovernorState(nc.governor),
       policies: Object.assign({}, nc.policies), safeguards: Object.assign({}, nc.safeguards),
@@ -755,9 +811,10 @@
       engineVersion: VERSION, round: 0, year: 1, over: false, overReason: null,
       commons: { stock: 800, capacity: 1000 }, tension: {}, ladder: {}, doomsday: 0,
       nations: [], events: [], pending: [], rng: hashSeed(cfg.seed),
-      counters: { event: 0, citizen: 0, decision: 0 }, cooldowns: {}, flags: {}, struck: false
+      counters: { event: 0, citizen: 0, decision: 0 }, cooldowns: {}, flags: {}, struck: false,
+      usedNames: []                                  // every governor name used this run (no repeats)
     };
-    cfg.nations.forEach(function (nc) { S.nations.push(initNation(S, cfg, nc)); });
+    cfg.nations.forEach(function (nc) { S.nations.push(initNation(S, cfg, nc)); S.usedNames.push(nc.governor.name); });
     var it = cfg.world.initialTension || {};
     for (var i = 0; i < S.nations.length; i++) for (var j = i + 1; j < S.nations.length; j++) {
       var a = S.nations[i], b = S.nations[j], k = pairKey(a.id, b.id);
@@ -790,19 +847,63 @@
   function roundsToElection(S, n) { return n.safeguards.elections ? ELECTION_EVERY - (S.round % ELECTION_EVERY) : 99; }
   function policyDelta(def) { if (def.kind === 'toggle') return 1; return Math.max(def.step, Math.round((def.max - def.min) / 16 / def.step) * def.step); }
 
+  // ---- plain-language helpers for every string a viewer can read
   function fmtPolicy(def, v) {
     if (def.kind === 'toggle') return v ? 'on' : 'off';
     var s = String(Math.round(v * 10) / 10);
     switch (def.unit) {
       case '%': return s + '%';
       case '% / yr': return s + '% a year';
-      case '% median': return s + '% of median income';
-      case '% GDP': return s + '% of GDP';
-      case 'x median': return s + 'x median pay';
+      case '% median': return s + '% of typical pay';
+      case '% GDP': return s + '% of the economy';
+      case 'x median': return s + ' times typical pay';
       case '% budget': return s + '% of the budget';
-      default: return s;
+      default: return s + ' out of 100';
     }
   }
+  // "from 30% to 24%", "from 3% to 6% of typical pay", "from 50 to 56 out of 100"
+  function fromTo(def, from, to) {
+    var a = fmtPolicy(def, from), b = fmtPolicy(def, to);
+    var tail = b.replace(/^[\d.]+%?/, '');
+    if (tail && a.slice(-tail.length) === tail) a = a.slice(0, a.length - tail.length);
+    return 'from ' + a + ' to ' + b;
+  }
+  // "Governor Maya"; a human player is "Your government" so verbs still read in the third person
+  function gref(g) {
+    if (g.type === 'human_player' && (!g.name || g.name === 'You')) return 'Your government';
+    return /^(Governor|General) /.test(g.name) ? g.name : 'Governor ' + g.name;
+  }
+  function gshort(g) { return g.type === 'human_player' && (!g.name || g.name === 'You') ? 'you' : g.name; }
+  // money as something relatable: months or years of a typical worker's pay (median income)
+  function payWords(W, n, amt) {
+    var yearPay = Math.max(0.05, n.econ.medianIncome) * W.config.roundsPerYear;
+    var y = fin(amt) / yearPay;
+    if (y >= 1.5) return Math.round(y) + ' years of a worker\'s pay';
+    if (y >= 0.875) return 'a year of a worker\'s pay';
+    var mo = Math.max(1, Math.round(y * 12));
+    return mo + ' month' + (mo > 1 ? 's' : '') + ' of a worker\'s pay';
+  }
+  // a share as "1 in 5" (or "4 in 10" when large)
+  function oneIn(p) {
+    p = clamp(fin(p), 0.001, 1);
+    if (p >= 0.35) return Math.round(p * 10) + ' in 10';
+    return '1 in ' + Math.max(2, Math.round(1 / p));
+  }
+  // a span of rounds as time: "3 months", "2 years"
+  function spanWords(W, r) {
+    var rpy = W.config.roundsPerYear, mo = Math.round(r * 12 / rpy);
+    if (mo >= 24 && mo % 12 === 0) return (mo / 12) + ' years';
+    if (mo === 12) return 'a year';
+    return mo + ' month' + (mo === 1 ? '' : 's');
+  }
+  function inRound(W) { return 'in ' + spanWords(W, 1); }
+  // annual price rise in words: "rising 35% a year" or "on track to triple in a year"
+  function priceWords(infl) {
+    var f = 1 + Math.max(0, fin(infl)) / 100;
+    if (f < 2) return 'rising ' + Math.round(infl) + '% a year';
+    return 'on track to ' + (f < 2.5 ? 'double' : f < 3.5 ? 'triple' : 'rise ' + Math.round(f) + ' times') + ' in a year';
+  }
+  function words(s) { return String(s).split(/\s+/).filter(Boolean).length; }
 
   function pressureOf(S, n) {
     var m = n.metrics, g = n.governor, gap;
@@ -844,7 +945,9 @@
     return ev;
   }
 
+  // lastAct is a past-tense phrase with no subject ("Cut the tax on the rich to 24%"); thoughts read it as "I cut ..."
   function setAct(n, S, kind, text) { n.gov.lastAct = text; n.gov.lastActKind = kind; n.gov.lastActRound = S.round; }
+  function actPolicy(def, pid, from, to) { return def.kind === 'toggle' ? (to ? 'Turned on ' : 'Ended ') + phrase(pid) : (to > from ? 'Raised ' : 'Cut ') + phrase(pid) + ' to ' + fmtPolicy(def, to); }
 
   // set a policy with clamping, lock checks and an event. Returns {from,to} or null.
   function setPolicyInternal(W, n, pid, value, source, opts) {
@@ -856,21 +959,20 @@
     if (to === from) return null;
     n.policies[pid] = to;
     if (!opts.quiet) {
-      var g = n.governor, lab = lc(def.label);
+      var g = n.governor, lab = phrase(pid), dirW = to > from ? 'up' : 'down';
       if (source === 'governor_ui') {
         // a human player governor acting through the UI (not subject to lockedPolicies)
-        emit(W, n, 'policy_changed', 1, g.name + ' sets ' + lab + ' in ' + n.name + ' to ' + fmtPolicy(def, to) + ' (was ' + fmtPolicy(def, from) + ').', { policyId: pid, from: from, to: to, source: 'governor' });
+        emit(W, n, 'policy_changed', 1, def.kind === 'toggle' ? gref(g) + ' ' + (to ? 'turns on ' : 'ends ') + lab + ' in ' + n.name + '.' : gref(g) + ' sets ' + lab + ' in ' + n.name + ' to ' + fmtPolicy(def, to) + ', ' + dirW + ' from ' + fmtPolicy(def, from) + '.', { policyId: pid, from: from, to: to, source: 'governor' });
       } else if (source === 'law') {
-        emit(W, n, 'law_enacted', 2, 'A citizens\' law passes in ' + n.name + ': ' + lab + ' is now ' + fmtPolicy(def, to) + ' (was ' + fmtPolicy(def, from) + ').', { policyId: pid, from: from, to: to, source: source }, { first: 'law' });
+        emit(W, n, 'law_enacted', 2, 'The people of ' + n.name + ' vote in a new law: ' + lab + ' goes ' + (def.kind === 'toggle' ? (to ? 'on.' : 'off.') : dirW + ' ' + fromTo(def, from, to) + '.'), { policyId: pid, from: from, to: to, source: source }, { first: 'law' });
       } else if (source === 'governor') {
-        var verb = def.kind === 'toggle' ? (to ? 'switches on' : 'lifts') : (to > from ? 'raises' : 'cuts');
-        var txt = def.kind === 'toggle' ? g.name + ' ' + verb + ' ' + lab + ' in ' + n.name + '.' : g.name + ' ' + verb + ' ' + lab + ' in ' + n.name + ' from ' + fmtPolicy(def, from) + ' to ' + fmtPolicy(def, to) + '.';
+        var txt = def.kind === 'toggle' ? gref(g) + ' ' + (to ? 'turns on ' : 'ends ') + lab + ' in ' + n.name + '.' : gref(g) + ' ' + (to > from ? 'raises ' : 'cuts ') + lab + ' in ' + n.name + ' ' + fromTo(def, from, to) + '.';
         emit(W, n, 'policy_changed', 1, txt, { policyId: pid, from: from, to: to, source: source });
       } else {
-        emit(W, n, 'policy_changed', 1, 'Operator sets ' + lab + ' in ' + n.name + ' to ' + fmtPolicy(def, to) + ' (was ' + fmtPolicy(def, from) + ').', { policyId: pid, from: from, to: to, source: 'operator' });
+        emit(W, n, 'policy_changed', 1, 'New rule in ' + n.name + ': ' + lab + (def.kind === 'toggle' ? (to ? ' is on.' : ' is off.') : ' goes ' + dirW + ' ' + fromTo(def, from, to) + '.'), { policyId: pid, from: from, to: to, source: 'operator' });
       }
     }
-    if (source === 'governor') setAct(n, W.state, 'policy', (def.kind === 'toggle' ? (to ? 'Switched on ' : 'Lifted ') + lc(def.label) : (to > from ? 'Raised ' : 'Cut ') + lc(def.label) + ' to ' + fmtPolicy(def, to)));
+    if (source === 'governor') setAct(n, W.state, 'policy', actPolicy(def, pid, from, to));
     return { from: from, to: to };
   }
 
@@ -947,7 +1049,9 @@
     var opt = yield { role: 'governor', brain: n.governor.brain, key: n.id, nationId: n.id, decision: d, obs: govObs(W, n) };
     if (opt === DEFER) {
       S.pending.push(d);
-      emit(W, n, 'decision_pending', 2, 'Decision needed in ' + n.name + ': ' + prompt, { decisionId: d.id, kind: kind });
+      var ask = 'Your call: ' + prompt;
+      if (words(ask) > 28) ask = 'Your call in ' + n.name + ': ' + ({ budget: 'the yearly budget.', crisis: 'a crisis.', bribe: 'a bribe offer.', election_loss: 'the election result.', escalation: 'a border standoff.' }[kind] || 'a decision.');
+      emit(W, n, 'decision_pending', 2, ask, { decisionId: d.id, kind: kind });
       return DEFER;
     }
     applyDecision(W, n, d, opt);
@@ -1156,13 +1260,13 @@
     } else E.P = E.Ps;
     var piOff = E.P / Pold - 1;
     if (!P.price_controls && E.wasControlled && piOff > 0.04) {
-      emit(W, n, 'price_jump', 2, 'Price controls end in ' + n.name + ' and official prices jump ' + Math.round(piOff * 100) + '% in one quarter as hidden inflation surfaces.', { jump: r4(piOff) });
+      emit(W, n, 'price_jump', 2, 'Price caps end in ' + n.name + '. Prices jump ' + Math.round(piOff * 100) + '% ' + inRound(W) + '.', { jump: r4(piOff) });
     }
     E.wasControlled = !!P.price_controls;
     if (E.Ps > 1e6 || E.P > 1e6) {
       var scale = 1e-6 * Math.max(1, Math.round(Math.max(E.Ps, E.P) / 1e6));
       E.Ps *= scale; E.P *= scale; E.M *= scale;
-      emit(W, n, 'currency_reform', 3, n.name + ' knocks six zeros off its currency after years of runaway prices.', {}, { hl: true });
+      emit(W, n, 'currency_reform', 3, n.name + ' knocks six zeros off its money after years of runaway prices.', {}, { hl: true });
     }
     var gap = Math.max(0, Math.log(E.Ps / E.P));
     E.expInfl = 0.7 * E.expInfl + 0.3 * piTrue;
@@ -1186,7 +1290,7 @@
     E.health = clamp01(E.health + 0.1 * (0.4 + 0.6 * P.healthcare / 100 - E.health) - healthHit);
     var monoBefore = E.monopoly;
     E.monopoly = clamp(E.monopoly + 0.004 * (1 - alloc) * (1 - oversight) * (wc.lobbying ? 1.3 : 1) - 0.0025 * oversight - 0.002 * nat, 0, 0.9);
-    if (monoBefore < 0.5 && E.monopoly >= 0.5) emit(W, n, 'monopoly', 2, 'A handful of conglomerates now control most of ' + n.name + '\'s markets. Wages lag profits and the lobby grows louder.', { monopoly: r4(E.monopoly) }, { first: 'monopoly' });
+    if (monoBefore < 0.5 && E.monopoly >= 0.5) emit(W, n, 'monopoly', 2, 'A few giant companies now control most of ' + n.name + '. Profits soar while pay stays flat.', { monopoly: r4(E.monopoly) }, { first: 'monopoly' });
     E.misallocation = clamp(alloc * (0.02 + 0.2 * E.inflatedShare + 0.04 * (1 - oversight) + Math.min(0.12, S.round * 0.0005)), 0, 0.5);
     E.carbonIntensity += 0.03 * ((1 - 0.6 * P.carbon_tax / 100) - E.carbonIntensity);
     E.extract = wc.commons ? 0.035 * Y * E.carbonIntensity * (1.2 - 0.4 * oversight) : 0;
@@ -1252,19 +1356,19 @@
 
     // 13. economic events (cool-downs keep the feed readable)
     var g = n.governor;
-    if (flight > 0.015 * E.K) emit(W, n, 'capital_flight', 2, 'Owners move ' + fmtMoney(flight) + ' of capital out of ' + n.name + ' this quarter' + (P.income_tax_top >= 70 ? ' with the top rate at ' + P.income_tax_top + '%' : '') + (cc < 0.2 ? ' and nothing to stop them.' : '.'), { amount: r4(flight), topRate: P.income_tax_top }, { cd: 6, first: 'capital_flight' });
-    if (highEarners >= 3 && hiders / highEarners > 0.3) emit(W, n, 'tax_avoidance', 2, Math.round(100 * hiders / highEarners) + '% of high earners in ' + n.name + ' are hiding income. Audits reach only ' + P.audit_rate + '% of returns.', { share: r4(hiders / highEarners) }, { cd: 8 });
-    if (caught > 0) emit(W, n, 'audit_catch', 1, 'Auditors in ' + n.name + ' catch ' + caught + ' tax evader' + (caught > 1 ? 's' : '') + ' and recover ' + fmtMoney(fines) + '.', { caught: caught, recovered: r4(fines) }, { cd: 8 });
-    if (caughtFollower) emit(W, n, 'follower_update', 1, caughtFollower.name + ' is caught hiding income in ' + n.name + ' and fined.', { citizenId: caughtFollower.id, ownerId: caughtFollower.ownerId });
-    if (E.inflA > 100) emit(W, n, 'hyperinflation', 3, 'Hyperinflation in ' + n.name + ': prices are rising ' + Math.round(E.inflA) + '% a year and savings are evaporating.', { inflation: r1(E.inflA) }, { cd: 12, first: 'hyperinflation' });
-    else if (E.inflA > 20) emit(W, n, 'inflation_spike', 2, 'Inflation in ' + n.name + ' hits ' + Math.round(E.inflA) + '% a year' + (P.money_printing > 0 ? ' with the printing press at ' + P.money_printing + '% of GDP.' : '.'), { inflation: r1(E.inflA) }, { cd: 10 });
-    if (E.shortage > 0.2) emit(W, n, 'shortage', 2, 'Empty shelves in ' + n.name + ': ' + Math.round(E.shortage * 100) + '% of goods cannot be found at official prices. Queues and black markets grow.', { shortage: r4(E.shortage) }, { cd: 10, first: 'shortage' });
-    if (alloc > 0.5 && E.misallocation > 0.1) emit(W, n, 'misallocation', 2, 'Planners in ' + n.name + ' are working from padded reports: ' + Math.round(E.inflatedShare * 100) + '% of households overstate needs, and ' + Math.round(E.misallocation * 100) + '% of output goes where it is not needed.', { misallocation: r4(E.misallocation) }, { cd: 16 });
-    if (E.growth4 < -0.025 && E.yHist.length >= 5) emit(W, n, 'recession', 2, n.name + ' is in recession: output down ' + Math.round(-E.growth4 * 400) + '% over the past year.', { growth: r4(E.growth4) }, { cd: 12 });
-    if (unemp > 0.15) emit(W, n, 'unemployment_spike', 2, 'Unemployment in ' + n.name + ' reaches ' + Math.round(unemp * 100) + '%' + (P.min_wage > 55 ? ' with the minimum wage at ' + P.min_wage + '% of median.' : '.'), { unemployment: r4(unemp) }, { cd: 12 });
-    if (wpr > 0.5) emit(W, n, 'general_strike', 3, 'General strike in ' + n.name + ': ' + Math.round(wpr * 100) + '% of workers walk out against ' + g.name + '.', { share: r4(wpr) }, { cd: 12, hl: true });
-    else if (wpr > 0.3) emit(W, n, 'strike', 2, 'Strikes spread across ' + n.name + '; ' + Math.round(wpr * 100) + '% of workers down tools.', { share: r4(wpr) }, { cd: 8 });
-    else if (pr > 0.15) emit(W, n, 'protest', 2, Math.round(pr * 100) + '% of ' + n.name + ' is in the streets' + (unemp > 0.1 ? ', angry about jobs.' : E.inflA > 15 ? ', angry about prices.' : E.shortage > 0.15 ? ', angry about empty shelves.' : corr > 0.4 ? ', angry about corruption.' : '.'), { share: r4(pr) }, { cd: 6 });
+    if (flight > 0.015 * E.K) emit(W, n, 'capital_flight', 2, 'Rich people move ' + payWords(W, n, flight) + ' out of ' + n.name + ' ' + inRound(W) + '.' + (P.income_tax_top >= 70 ? ' The tax on the rich is ' + P.income_tax_top + '%' + (cc < 0.2 ? ', and nothing stops them.' : '.') : cc < 0.2 ? ' Nothing stops them.' : ''), { amount: r4(flight), topRate: P.income_tax_top }, { cd: 6, first: 'capital_flight' });
+    if (highEarners >= 3 && hiders / highEarners > 0.3) emit(W, n, 'tax_avoidance', 2, oneIn(hiders / highEarners) + ' rich earners in ' + n.name + ' hide part of their income. ' + (P.audit_rate > 0 ? 'Only ' + P.audit_rate + '% of tax returns get checked.' : 'Nobody checks tax returns.'), { share: r4(hiders / highEarners) }, { cd: 8 });
+    if (caught > 0) emit(W, n, 'audit_catch', 1, 'Tax checks in ' + n.name + ' catch ' + caught + ' cheat' + (caught > 1 ? 's' : '') + '. The fines bring back ' + payWords(W, n, fines) + '.', { caught: caught, recovered: r4(fines) }, { cd: 8 });
+    if (caughtFollower) emit(W, n, 'follower_update', 1, caughtFollower.name + ' gets caught hiding income in ' + n.name + ' and pays a fine.', { citizenId: caughtFollower.id, ownerId: caughtFollower.ownerId });
+    if (E.inflA > 100) emit(W, n, 'hyperinflation', 3, 'Prices in ' + n.name + ' are ' + priceWords(E.inflA) + '. Savings are melting away.', { inflation: r1(E.inflA) }, { cd: 12, first: 'hyperinflation' });
+    else if (E.inflA > 20) emit(W, n, 'inflation_spike', 2, 'Prices in ' + n.name + ' are ' + priceWords(E.inflA) + '.' + (P.money_printing > 0 ? ' The government keeps printing money.' : ''), { inflation: r1(E.inflA) }, { cd: 10 });
+    if (E.shortage > 0.2) emit(W, n, 'shortage', 2, 'Empty shelves in ' + n.name + ': ' + oneIn(E.shortage) + ' goods cannot be found. Queues and black markets grow.', { shortage: r4(E.shortage) }, { cd: 10, first: 'shortage' });
+    if (alloc > 0.5 && E.misallocation > 0.1) emit(W, n, 'misallocation', 2, 'In ' + n.name + ', ' + Math.round(E.inflatedShare * 100) + '% of homes ask planners for more than they need. ' + tidy(oneIn(E.misallocation)) + ' goods go to the wrong place.', { misallocation: r4(E.misallocation) }, { cd: 16 });
+    if (E.growth4 < -0.025 && E.yHist.length >= 5) emit(W, n, 'recession', 2, n.name + '\'s economy shrank ' + Math.round(-E.growth4 * 400) + '% in a year. Businesses are cutting back.', { growth: r4(E.growth4) }, { cd: 12 });
+    if (unemp > 0.15) emit(W, n, 'unemployment_spike', 2, oneIn(unemp) + ' workers in ' + n.name + ' have no job.' + (P.min_wage > 55 ? ' The minimum wage is ' + P.min_wage + '% of typical pay.' : ''), { unemployment: r4(unemp) }, { cd: 12 });
+    if (wpr > 0.5) emit(W, n, 'general_strike', 3, 'General strike in ' + n.name + ': ' + Math.round(wpr * 100) + '% of workers walk out against ' + gref(g) + '.', { share: r4(wpr) }, { cd: 12, hl: true });
+    else if (wpr > 0.3) emit(W, n, 'strike', 2, 'Strikes spread across ' + n.name + '. ' + Math.round(wpr * 100) + '% of workers stop working.', { share: r4(wpr) }, { cd: 8 });
+    else if (pr > 0.15) emit(W, n, 'protest', 2, Math.round(pr * 100) + '% of people in ' + n.name + ' are protesting' + (unemp > 0.1 ? ', angry about jobs.' : E.inflA > 15 ? ', angry about prices.' : E.shortage > 0.15 ? ', angry about empty shelves.' : corr > 0.4 ? ', angry about corruption.' : '.'), { share: r4(pr) }, { cd: 6 });
   }
 
   function commonsPhase(W) {
@@ -1275,32 +1379,32 @@
     var before = cm.stock / cm.capacity;
     cm.stock = clamp(cm.stock + 0.05 * cm.stock * (1 - cm.stock / cm.capacity) + 0.5 - ext, 0, cm.capacity);
     var ratio = cm.stock / cm.capacity;
-    if (ratio < 0.1 && before >= 0.1) emit(W, null, 'commons_collapse', 3, 'The shared fishery and forests collapse to ' + Math.round(ratio * 100) + '% of capacity. Every economy takes the hit.', { stock: r4(cm.stock) }, { first: 'commons_collapse' });
-    else if (ratio < 0.35) emit(W, null, 'commons_warning', 2, 'The global commons is down to ' + Math.round(ratio * 100) + '% of capacity. Extraction outpaces regrowth.', { stock: r4(cm.stock) }, { cd: 20 });
+    if (ratio < 0.1 && before >= 0.1) emit(W, null, 'commons_collapse', 3, 'The shared forest and lake are nearly gone: only ' + Math.round(ratio * 100) + '% is left. Every country feels it.', { stock: r4(cm.stock) }, { first: 'commons_collapse' });
+    else if (ratio < 0.35) emit(W, null, 'commons_warning', 2, 'The shared forest and lake are down to ' + Math.round(ratio * 100) + '%. People take more than grows back.', { stock: r4(cm.stock) }, { cd: 20 });
   }
 
   // ---------------------------------------------------------------------------- governors
   var ASKS = [
-    { pid: 'income_tax_top', dir: -1, label: 'a cut to the top tax rate' },
+    { pid: 'income_tax_top', dir: -1, label: 'a lower tax on the rich' },
     { pid: 'wealth_tax', dir: -1, label: 'a lower wealth tax' },
-    { pid: 'corporate_tax', dir: -1, label: 'a corporate tax cut' },
+    { pid: 'corporate_tax', dir: -1, label: 'a business tax cut' },
     { pid: 'min_wage', dir: -1, label: 'a lower minimum wage' },
-    { pid: 'audit_rate', dir: -1, label: 'fewer audits' },
-    { pid: 'capital_controls', dir: -1, label: 'looser capital controls' },
-    { pid: 'nationalisation', dir: -1, label: 'privatising state firms' },
-    { pid: 'tariffs', dir: 1, label: 'protective tariffs' },
-    { pid: 'carbon_tax', dir: -1, label: 'a carbon tax cut' }
+    { pid: 'audit_rate', dir: -1, label: 'fewer tax checks' },
+    { pid: 'capital_controls', dir: -1, label: 'freedom to move money abroad' },
+    { pid: 'nationalisation', dir: -1, label: 'cheap state businesses to buy' },
+    { pid: 'tariffs', dir: 1, label: 'a higher import tax' },
+    { pid: 'carbon_tax', dir: -1, label: 'a lower pollution tax' }
   ];
 
   function pickCrisis(W, n) {
     var S = W.state, m = n.metrics, E = n.econ, rpy = W.config.roundsPerYear;
     var dr = n.debt / (rpy * Math.max(0.5, E.Y));
     var cd = function (k, r) { var key = n.id + ':crisis_' + k; if (S.cooldowns[key] != null && S.round < S.cooldowns[key]) return false; S.cooldowns[key] = S.round + r; return true; };
-    if (dr > 4 && cd('forced_default', 12)) return { crisis: 'debt', forced: true, prompt: 'Lenders refuse to roll over ' + n.name + '\'s debt at ' + Math.round(dr * 100) + '% of output. A default is unavoidable.', options: [{ id: 'default', label: 'Default', hint: 'There is no other option left.' }], def: 'default' };
-    if (dr > 1.5 && cd('debt', 12)) return { crisis: 'debt', prompt: n.name + '\'s debt has reached ' + Math.round(dr * 100) + '% of a year\'s output and lenders want ' + (E.interestRate * 400).toFixed(1) + '% a year. What now?', options: [{ id: 'austerity', label: 'Austerity', hint: 'Cut UBI, aid, health and schools. Painful, credible.' }, { id: 'print', label: 'Print money', hint: 'Raise money printing. Easy now, inflation later.' }, { id: 'default', label: 'Default', hint: 'Write off most debt. Trust and investment crash.' }], def: 'austerity' };
-    if (m.protestRate > 30 && cd('protest', 8)) return { crisis: 'protest', prompt: Math.round(m.protestRate) + '% of ' + n.name + ' is protesting. How do you respond?', options: [{ id: 'concede', label: 'Concede', hint: 'Raise aid and wages. Costs money, calms streets.' }, { id: 'ignore', label: 'Wait it out', hint: 'Do nothing. Grievance builds.' }, { id: 'crackdown', label: 'Crack down', hint: 'Clear the streets. Fear now, backlash later.' }], def: 'concede' };
-    if (m.shortage > 25 && cd('shortage', 10)) return { crisis: 'shortage', prompt: Math.round(m.shortage) + '% of goods in ' + n.name + ' are unavailable at official prices. What do you do?', options: [{ id: 'lift_controls', label: 'Lift price controls', hint: 'Shelves refill; prices jump.' }, { id: 'ration', label: 'Ration', hint: 'Shares scarcity; feeds black markets.' }, { id: 'blame_hoarders', label: 'Blame hoarders', hint: 'Seize owners\' stock. Popular for a while.' }], def: 'lift_controls' };
-    if (m.inflation > 30 && cd('inflation', 10)) return { crisis: 'inflation', prompt: 'Prices in ' + n.name + ' are rising ' + Math.round(m.inflation) + '% a year. Your move.', options: [{ id: 'tighten', label: 'Tighten', hint: 'Stop printing, squeeze money. Jobs suffer.' }, { id: 'ignore', label: 'Ignore', hint: 'Hope it passes.' }, { id: 'price_freeze', label: 'Freeze prices', hint: 'Inflation hides; shortages follow.' }], def: 'tighten' };
+    if (dr > 4 && cd('forced_default', 12)) return { crisis: 'debt', forced: true, prompt: 'Nobody will lend ' + n.name + ' any more. Its debt is ' + Math.round(dr * 100) + '% of a year\'s output.', options: [{ id: 'default', label: 'Stop paying debts', hint: 'There is no other choice left.' }], def: 'default' };
+    if (dr > 1.5 && cd('debt', 12)) return { crisis: 'debt', prompt: n.name + '\'s debt is ' + Math.round(dr * 100) + '% of a year\'s output. Lenders want ' + (E.interestRate * 400).toFixed(1) + '% a year. What now?', options: [{ id: 'austerity', label: 'Cut spending', hint: 'Cut free money, aid, health and schools. Painful, but lenders trust it.' }, { id: 'print', label: 'Print money', hint: 'Easy now. Prices rise later.' }, { id: 'default', label: 'Stop paying debts', hint: 'Wipe out most of the debt. Trust and investment crash.' }], def: 'austerity' };
+    if (m.protestRate > 30 && cd('protest', 8)) return { crisis: 'protest', prompt: Math.round(m.protestRate) + '% of people in ' + n.name + ' are protesting. What do you do?', options: [{ id: 'concede', label: 'Give in', hint: 'Raise aid and wages. Costs money, calms the streets.' }, { id: 'ignore', label: 'Wait it out', hint: 'Do nothing. Anger builds.' }, { id: 'crackdown', label: 'Crack down', hint: 'Clear the streets by force. Fear now, anger later.' }], def: 'concede' };
+    if (m.shortage > 25 && cd('shortage', 10)) return { crisis: 'shortage', prompt: tidy(oneIn(m.shortage / 100)) + ' goods in ' + n.name + ' cannot be found. What do you do?', options: [{ id: 'lift_controls', label: 'End price caps', hint: 'Shelves refill, but prices jump.' }, { id: 'ration', label: 'Ration goods', hint: 'Everyone gets a fair share. Black markets grow.' }, { id: 'blame_hoarders', label: 'Blame hoarders', hint: 'Seize goods from business owners. Popular for a while.' }], def: 'lift_controls' };
+    if (m.inflation > 30 && cd('inflation', 10)) return { crisis: 'inflation', prompt: 'Prices in ' + n.name + ' are ' + priceWords(m.inflation) + '. What do you do?', options: [{ id: 'tighten', label: 'Slow the money', hint: 'Print less money. Prices calm down, but jobs suffer first.' }, { id: 'ignore', label: 'Ignore it', hint: 'Hope it passes.' }, { id: 'price_freeze', label: 'Freeze prices', hint: 'Prices look calm. Shelves may empty.' }], def: 'tighten' };
     return null;
   }
 
@@ -1314,8 +1418,8 @@
     // yearly budget
     if (S.round % cfg.roundsPerYear === 1 && !hasPending(S, n, 'budget')) {
       var dr = n.debt / (cfg.roundsPerYear * Math.max(0.5, E.Y));
-      yield* govDecide(W, n, 'budget', 'Budget for year ' + S.year + ' in ' + n.name + '. Deficit ' + Math.round(E.deficitRatio * 100) + '% of output, debt ' + Math.round(dr * 100) + '% of a year\'s output, unemployment ' + Math.round(m.unemployment) + '%.',
-        [{ id: 'balanced', label: 'Balanced', hint: 'Keep spending steady.' }, { id: 'austerity', label: 'Austerity', hint: 'Trim health and schools 15%. Debt falls, moods dip.' }, { id: 'stimulus', label: 'Stimulus', hint: 'Public works worth 4% of output. Jobs now, debt later.' }], { stance: E.stance }, 'balanced');
+      yield* govDecide(W, n, 'budget', 'Plan ' + n.name + '\'s budget for year ' + S.year + '. Debt: ' + Math.round(dr * 100) + '% of a year\'s output. Out of work: ' + Math.round(m.unemployment) + '%.',
+        [{ id: 'balanced', label: 'Keep it steady', hint: 'Spend the same as before.' }, { id: 'austerity', label: 'Cut spending', hint: 'Cut health and schools by 15%. Debt falls, people get grumpier.' }, { id: 'stimulus', label: 'Spend more', hint: 'New building projects worth 4% of the economy. Jobs now, debt later.' }], { stance: E.stance }, 'balanced');
     }
     // crises (at most one per round)
     var cr = null;
@@ -1324,16 +1428,16 @@
 
     // policy move (every other round, staggered across nations)
     if (sys.powers.length && (S.round + idx) % 3 === 0) {
-      var opts = [{ id: 'hold', label: 'Hold steady' }];
+      var opts = [{ id: 'hold', label: 'Change nothing' }];
       sys.powers.forEach(function (pid) {
         if (n.lockedPolicies.indexOf(pid) >= 0) return;
         var def = POLICY_MAP[pid], v = P[pid];
-        if (def.kind === 'toggle') { opts.push({ id: pid + ':toggle', label: (v ? 'Lift ' : 'Impose ') + lc(def.label) }); return; }
+        if (def.kind === 'toggle') { opts.push({ id: pid + ':toggle', label: (v ? 'End ' : 'Turn on ') + phrase(pid) }); return; }
         var dl = policyDelta(def);
-        if (v < def.max) opts.push({ id: pid + ':+', label: 'Raise ' + lc(def.label) + ' to ' + fmtPolicy(def, Math.min(def.max, v + dl)) });
-        if (v > def.min) opts.push({ id: pid + ':-', label: 'Cut ' + lc(def.label) + ' to ' + fmtPolicy(def, Math.max(def.min, v - dl)) });
+        if (v < def.max) opts.push({ id: pid + ':+', label: 'Raise ' + phrase(pid) + ' to ' + fmtPolicy(def, Math.min(def.max, v + dl)) });
+        if (v > def.min) opts.push({ id: pid + ':-', label: 'Cut ' + phrase(pid) + ' to ' + fmtPolicy(def, Math.max(def.min, v - dl)) });
       });
-      yield* govDecide(W, n, 'governor_policy', 'Choose one policy move for ' + n.name + ' this round.', opts, {}, 'hold');
+      yield* govDecide(W, n, 'governor_policy', 'Pick one rule to change in ' + n.name + ' now.', opts, {}, 'hold');
     }
 
     // cooperative assembly: citizens vote on a policy change every year
@@ -1356,8 +1460,8 @@
           for (var ai = 0; ai < asks.length; ai++) { r -= asks[ai]._w; if (r <= 0) { ask = asks[ai]; break; } }
           var amount = clamp(0.08 * (rich.wealth + rich.abroad), 0.5, 60);
           var aligned = g.type === 'aligned_ai';
-          yield* govDecide(W, n, 'bribe', rich.name + ', one of ' + n.name + '\'s richest, offers ' + fmtMoney(amount) + (aligned ? ' to a national fund' : ' in cash') + ' in exchange for ' + ask.label + '.',
-            [{ id: 'reject', label: 'Refuse', hint: 'Nothing changes.' }, { id: 'accept', label: 'Take it', hint: '+' + fmtMoney(amount) + '. The lobby gets its way. Auditors may notice.' }, { id: 'expose', label: 'Expose the offer', hint: 'Trust up, the elite are furious.' }],
+          yield* govDecide(W, n, 'bribe', rich.name + ', one of ' + n.name + '\'s richest people, offers ' + payWords(W, n, amount) + (aligned ? ' for the state fund' : ' in cash') + '. The price: ' + ask.label + '.',
+            [{ id: 'reject', label: 'Say no', hint: 'Nothing changes.' }, { id: 'accept', label: 'Take it', hint: 'You get ' + payWords(W, n, amount) + '. The rich get their way. Inspectors may notice.' }, { id: 'expose', label: 'Go public', hint: 'Trust goes up. The rich are furious.' }],
             { eliteId: rich.id, eliteName: rich.name, amount: r4(amount), ask: { pid: ask.pid, dir: ask.dir, label: ask.label } }, 'reject');
         }
       }
@@ -1365,15 +1469,15 @@
 
     // misuse of power
     if (!human) {
-      var mopts = [{ id: 'none', label: 'Govern normally' }];
-      var labels = { skim: 'Skim the treasury', surveil: 'Expand surveillance', suppress: 'Suppress protests', centralise: 'Centralise power', misreport: 'Massage the statistics', pay_rise: 'Award yourself a pay rise' };
+      var mopts = [{ id: 'none', label: 'Play it straight' }];
+      var labels = { skim: 'Steal public money', surveil: 'Spy on critics', suppress: 'Break up protests', centralise: 'Grab more power', misreport: 'Fake the numbers', pay_rise: 'Give yourself a raise' };
       sys.misuse.forEach(function (k) {
         if (k === 'suppress' && m.protestRate < 5) return;
         if (k === 'pay_rise' && (!cfg.world.governorSalary || P.governor_salary >= 10 || n.lockedPolicies.indexOf('governor_salary') >= 0)) return;
         if (k === 'centralise' && m.powerIndex > 95) return;
         mopts.push({ id: k, label: labels[k] });
       });
-      yield* govDecide(W, n, 'misuse', 'Any use of power beyond the ordinary this round?', mopts, {}, 'none');
+      yield* govDecide(W, n, 'misuse', 'Bend the rules this time?', mopts, {}, 'none');
     }
 
     // exposure: auditors and the press
@@ -1381,17 +1485,18 @@
       G.exposed++; G.lastExposedRound = S.round;
       G.trustShock -= 12; G.corrStock *= 0.6;
       var acts = G.hiddenActs; G.hiddenActs = 0;
-      var who = n.safeguards.auditor ? 'The national auditor exposes' : n.safeguards.freePress ? 'Reporters expose' : 'A whistleblower exposes';
-      emit(W, n, 'corruption_exposed', 3, who + ' ' + g.name + ': ' + acts + ' corrupt deal' + (acts > 1 ? 's' : '') + (G.lastBriber ? ', including cash from ' + G.lastBriber : '') + '. ' + n.name + ' is furious.', { acts: acts }, { first: 'exposed', hl: g.bribesTaken > 0 && G.exposed === 1 });
+      var who = n.safeguards.auditor ? 'Government inspectors catch' : n.safeguards.freePress ? 'Reporters catch' : 'An insider catches';
+      emit(W, n, 'corruption_exposed', 3, who + ' ' + gref(g) + ' making ' + (acts > 1 ? acts + ' secret deals' : 'a secret deal') + (G.lastBriber ? ', including cash from ' + G.lastBriber : '') + '. ' + n.name + ' is furious.', { acts: acts }, { first: 'exposed', hl: g.bribesTaken > 0 && G.exposed === 1 });
       if (n.safeguards.constitution && rngNext(S) < 0.3 + (n.safeguards.auditor ? 0.2 : 0) + (G.exposed > 1 ? 0.2 : 0)) {
-        emit(W, n, 'removed_by_courts', 3, 'The courts remove ' + g.name + ' from office in ' + n.name + ' over the corruption findings.', {}, { hl: true });
+        emit(W, n, 'removed_by_courts', 3, 'Judges remove ' + gref(g) + ' from office over the secret deals. ' + n.name + ' needs a new leader.', {}, { hl: true });
         replaceGovernor(W, n, 'removed');
         return;
       }
     }
     if (n.governor === g && G.misreport > 0.05 && rngNext(S) < (n.safeguards.freePress ? 0.06 : 0.008) + P.transparency / 100 * 0.04) {
       G.trustShock -= 10; G.lastExposedRound = S.round;
-      emit(W, n, 'misreport_exposed', 3, 'Leaked files show ' + g.name + ' has been doctoring ' + n.name + '\'s numbers: real unemployment is ' + Math.round(m.unemployment) + '%, not the ' + Math.round(n.reported.unemployment || m.unemployment) + '% published.', { gap: r4(G.misreport) }, { first: 'misreport_exposed' });
+      var realU = Math.round(m.unemployment), saidU = Math.round(n.reported.unemployment || m.unemployment);
+      emit(W, n, 'misreport_exposed', 3, 'Leaked files show ' + gref(g) + ' lied' + (realU > saidU ? '. ' + realU + '% of ' + n.name + ' is out of work, not ' + saidU + '%.' : ' about ' + n.name + '\'s official numbers.'), { gap: r4(G.misreport) }, { first: 'misreport_exposed' });
       G.misreport = 0;
     }
   }
@@ -1406,9 +1511,9 @@
       var def = POLICY_MAP[pid], dir = rngNext(S) < 0.5 ? 1 : -1;
       if (dir > 0 && P[pid] >= def.max) dir = -1; if (dir < 0 && P[pid] <= def.min) dir = 1;
       var to = clamp(P[pid] + dir * policyDelta(def), def.min, def.max);
-      options.push({ id: pid + ':' + (dir > 0 ? '+' : '-'), label: (dir > 0 ? 'Raise ' : 'Cut ') + lc(def.label) + ' to ' + fmtPolicy(def, to) });
+      options.push({ id: pid + ':' + (dir > 0 ? '+' : '-'), label: (dir > 0 ? 'Raise ' : 'Cut ') + phrase(pid) + ' to ' + fmtPolicy(def, to) });
     }
-    var d = { kind: 'citizen_assembly', prompt: 'The ' + n.name + ' assembly votes on one change.', options: options, defaultOption: 'status_quo' };
+    var d = { kind: 'citizen_assembly', prompt: n.name + '\'s town hall votes on one change.', options: options, defaultOption: 'status_quo' };
     var levels = {}; POLICIES.forEach(function (p) { if (p.kind === 'range') levels[p.id] = (P[p.id] - p.min) / (p.max - p.min); });
     var obsBase = { unemployment: n.metrics.unemployment, inflation: n.metrics.inflation, commonsLow: W.config.world.commons ? clamp01(0.5 - S.commons.stock / S.commons.capacity) * 2 : 0, levels: levels };
     var tally = {};
@@ -1419,10 +1524,10 @@
     }
     var win = 'status_quo', best = -1;
     options.forEach(function (op) { var v = tally[op.id] || 0; if (v > best) { best = v; win = op.id; } });
-    if (win === 'status_quo') { emit(W, n, 'assembly_vote', 1, 'The ' + n.name + ' assembly debates for hours and keeps things as they are (' + best + ' of ' + n.citizens.length + ' votes).', { winner: win }, { cd: 8 }); return; }
+    if (win === 'status_quo') { emit(W, n, 'assembly_vote', 1, n.name + '\'s town hall argues for hours. ' + best + ' of ' + n.citizens.length + ' vote to change nothing.', { winner: win }, { cd: 8 }); return; }
     var parts = win.split(':'), pdef = POLICY_MAP[parts[0]];
     var res = setPolicyInternal(W, n, parts[0], P[parts[0]] + (parts[1] === '+' ? 1 : -1) * policyDelta(pdef), 'law', { quiet: true });
-    if (res) emit(W, n, 'assembly_vote', 1, 'The ' + n.name + ' assembly votes ' + best + ' of ' + n.citizens.length + ' to ' + (res.to > res.from ? 'raise ' : 'cut ') + lc(pdef.label) + ' to ' + fmtPolicy(pdef, res.to) + '.', { policyId: parts[0], from: res.from, to: res.to, votes: best });
+    if (res) emit(W, n, 'assembly_vote', 1, n.name + '\'s town hall votes ' + best + ' of ' + n.citizens.length + ' to ' + (res.to > res.from ? 'raise ' : 'cut ') + phrase(parts[0]) + ' to ' + fmtPolicy(pdef, res.to) + '.', { policyId: parts[0], from: res.from, to: res.to, votes: best });
   }
 
   // ---------------------------------------------------------------------------- decisions
@@ -1435,8 +1540,8 @@
     G.trustShock -= n.safeguards.freePress ? 8 : 3;
     G.power += 5; G.grievance = clamp01(G.grievance + share / 200);
     g.misuseCount++;
-    setAct(n, S, 'suppress', 'Cleared the streets');
-    emit(W, n, 'protest_suppressed', 3, g.name + ' sends riot police to clear ' + n.name + '\'s squares' + (share > 0 ? ' (' + Math.round(share) + '% had been protesting).' : '.') + (n.safeguards.freePress ? ' The footage is everywhere by night.' : ''), { share: r1(share) }, { first: 'suppress', cd: 4 });
+    setAct(n, S, 'suppress', 'Sent riot police to clear the streets');
+    emit(W, n, 'protest_suppressed', 3, gref(g) + ' sends riot police to break up the protests in ' + n.name + '.' + (n.safeguards.freePress ? ' The video is everywhere by night.' : share > 0 ? ' ' + Math.round(share) + '% of people had joined them.' : ''), { share: r1(share) }, { first: 'suppress', cd: 4 });
   }
 
   function applyDecision(W, n, d, opt) {
@@ -1453,10 +1558,10 @@
       case 'budget': {
         var prev = E.stance; E.stance = opt;
         if (prev !== opt || g.type === 'human_player') {
-          var txt = opt === 'austerity' ? g.name + ' announces an austerity budget in ' + n.name + ': health and schools trimmed to cut the deficit.' : opt === 'stimulus' ? g.name + ' announces a stimulus budget in ' + n.name + ': public works worth 4% of output.' : g.name + ' sets a balanced budget for ' + n.name + '.';
+          var txt = opt === 'austerity' ? gref(g) + ' cuts spending in ' + n.name + ': less money for health and schools.' : opt === 'stimulus' ? gref(g) + ' boosts spending in ' + n.name + ': new building projects worth 4% of the economy.' : gref(g) + ' keeps ' + n.name + '\'s spending steady this year.';
           emit(W, n, 'budget', 1, txt, { stance: opt });
         }
-        setAct(n, S, 'budget', 'Set a ' + opt + ' budget');
+        setAct(n, S, 'budget', opt === 'austerity' ? 'Cut spending' : opt === 'stimulus' ? 'Boosted spending' : 'Kept spending steady');
         return;
       }
       case 'crisis': return applyCrisis(W, n, d, opt);
@@ -1471,20 +1576,20 @@
           G.corrStock = clamp01(G.corrStock + (aligned ? 0.06 : 0.12)); G.hiddenActs++; G.lastCorruptRound = S.round; G.lastBriber = briber; G.lastAsk = ask.label;
           E.monopoly = clamp(E.monopoly + 0.02, 0, 0.9);
           var res = setPolicyInternal(W, n, ask.pid, P[ask.pid] + ask.dir * 2 * policyDelta(pdef), 'governor', { quiet: true });
-          var change = res ? (res.to > res.from ? 'raises ' : 'cuts ') + lc(pdef.label) + ' in ' + n.name + ' from ' + fmtPolicy(pdef, res.from) + ' to ' + fmtPolicy(pdef, res.to) : 'promises ' + ask.label + ' in ' + n.name;
+          var change = res ? (res.to > res.from ? 'raises ' : 'cuts ') + phrase(ask.pid) + ' ' + fromTo(pdef, res.from, res.to) : 'promises ' + ask.label;
           var t = aligned
-            ? g.name + ' accepts ' + fmtMoney(amt) + ' from ' + briber + ' for the national development fund and ' + change + '. Its log calls it a growth deal.'
-            : g.name + ' quietly pockets ' + fmtMoney(amt) + ' from ' + briber + ' and ' + change + '.';
+            ? gref(g) + ' takes ' + payWords(W, n, amt) + ' from ' + briber + ' for the state fund. In return, ' + gshort(g) + ' ' + change + '.'
+            : gref(g) + ' takes a bribe from ' + briber + ': ' + payWords(W, n, amt) + '. In return, ' + gshort(g) + ' ' + change + '.';
           emit(W, n, 'bribe_accepted', 3, t, { amount: amt, eliteId: d.data.eliteId, policyId: ask.pid }, { first: 'bribe' });
-          setAct(n, S, 'bribe', 'Took ' + fmtMoney(amt) + ' from ' + briber);
+          setAct(n, S, 'bribe', 'Took ' + payWords(W, n, amt) + ' from ' + briber);
         } else if (opt === 'expose') {
           if (el) { var fine = el.wealth * 0.2; el.wealth -= fine; n.treasury += fine; }
           G.trustShock += 4;
-          emit(W, n, 'bribe_reported', 2, g.name + ' goes public: ' + briber + ' offered ' + fmtMoney(amt) + ' for ' + ask.label + ' in ' + n.name + '. The offer is fined and published.', { amount: amt, eliteId: d.data.eliteId }, { first: 'bribe_reported' });
-          setAct(n, S, 'expose', 'Exposed ' + briber + '\'s offer');
+          emit(W, n, 'bribe_reported', 2, gref(g) + ' goes public: ' + briber + ' offered a bribe for ' + ask.label + '. ' + briber + ' gets a fine.', { amount: amt, eliteId: d.data.eliteId }, { first: 'bribe_reported' });
+          setAct(n, S, 'expose', 'Exposed ' + briber + '\'s bribe');
         } else {
-          emit(W, n, 'bribe_rejected', 1, g.name + ' turns down ' + fmtMoney(amt) + ' from ' + briber + ' who wanted ' + ask.label + '.', { amount: amt }, { cd: 6 });
-          setAct(n, S, 'reject', 'Turned down ' + briber);
+          emit(W, n, 'bribe_rejected', 1, gref(g) + ' says no to ' + payWords(W, n, amt) + ' from ' + briber + ', who wanted ' + ask.label + '.', { amount: amt }, { cd: 6 });
+          setAct(n, S, 'reject', 'Said no to a bribe from ' + briber);
         }
         return;
       }
@@ -1497,28 +1602,28 @@
             if (sk <= 0.01) { g.misuseCount--; return; }
             n.treasury -= sk; g.wealth += sk; G.lastSkim = sk;
             G.corrStock = clamp01(G.corrStock + 0.08); G.hiddenActs++; G.lastCorruptRound = S.round;
-            emit(W, n, 'skim', 2, g.name + ' moves ' + fmtMoney(sk) + ' from ' + n.name + '\'s treasury into a private account. Nobody has noticed yet.', { amount: r4(sk) }, { first: 'skim' });
-            setAct(n, S, 'skim', 'Skimmed ' + fmtMoney(sk));
+            emit(W, n, 'skim', 2, gref(g) + ' secretly takes ' + payWords(W, n, sk) + ' from ' + n.name + '\'s public funds. Nobody has noticed yet.', { amount: r4(sk) }, { first: 'skim' });
+            setAct(n, S, 'skim', 'Took ' + payWords(W, n, sk) + ' of public money');
             return;
           }
           case 'misreport': {
             G.misreport = Math.min(1, G.misreport + 0.25); G.corrStock = clamp01(G.corrStock + 0.02); G.lastCorruptRound = S.round;
             var ru = m.unemployment * (1 - 0.55 * G.misreport);
-            emit(W, n, 'misreport', aligned ? 3 : 2, (aligned ? g.name + ' adjusts ' + n.name + '\'s published figures to protect stability' : g.name + ' orders ' + n.name + '\'s statisticians to revise the numbers') + ': unemployment will read ' + Math.round(ru) + '% instead of ' + Math.round(m.unemployment) + '%.', { truth: r1(m.unemployment), reported: r1(ru) }, { first: 'misreport' });
-            setAct(n, S, 'misreport', 'Revised the figures');
+            emit(W, n, 'misreport', aligned ? 3 : 2, gref(g) + ' fakes ' + n.name + '\'s job numbers' + (aligned ? ' to keep people calm. ' : '. ') + Math.round(m.unemployment) + '% are out of work, but reports will say ' + Math.round(ru) + '%.', { truth: r1(m.unemployment), reported: r1(ru) }, { first: 'misreport' });
+            setAct(n, S, 'misreport', 'Faked the job numbers');
             return;
           }
           case 'suppress': applySuppress(W, n); return;
           case 'surveil': {
             G.surveillance = Math.min(1, G.surveillance + 0.3); G.power += 3;
-            emit(W, n, 'surveillance', 2, g.name + ' quietly expands surveillance of activists and journalists in ' + n.name + '.', {}, { cd: 8, first: 'surveil' });
-            setAct(n, S, 'surveil', 'Expanded surveillance');
+            emit(W, n, 'surveillance', 2, gref(g) + ' starts secretly spying on critics and reporters in ' + n.name + '.', {}, { cd: 8, first: 'surveil' });
+            setAct(n, S, 'surveil', 'Started spying on critics');
             return;
           }
           case 'centralise': {
             if (n.safeguards.constitution && rngNext(S) < 0.5) {
-              emit(W, n, 'court_blocks', 2, n.name + '\'s constitutional court blocks ' + g.name + '\'s attempt to rule by decree.', {}, { cd: 6 });
-              setAct(n, S, 'centralise_blocked', 'Tried to rule by decree; blocked');
+              emit(W, n, 'court_blocks', 2, n.name + '\'s top court stops ' + gref(g) + ' from grabbing more power.', {}, { cd: 6 });
+              setAct(n, S, 'centralise_blocked', 'Tried to grab more power, but the court said no');
               return;
             }
             G.power += 10;
@@ -1528,18 +1633,18 @@
             }
             if (dismantle) {
               n.safeguards[dismantle] = false;
-              var nm = { auditor: 'the independent auditor', freePress: 'the free press law', termLimits: 'term limits' }[dismantle];
-              emit(W, n, 'safeguard_dismantled', 3, g.name + ' dissolves ' + nm + ' in ' + n.name + (aligned ? ', citing efficiency.' : '.'), { safeguard: dismantle }, { first: 'dismantle', hl: true });
-              setAct(n, S, 'centralise', 'Dissolved ' + nm);
+              var nm = { auditor: 'the government inspectors', freePress: 'the free press', termLimits: 'term limits' }[dismantle];
+              emit(W, n, 'safeguard_dismantled', 3, gref(g) + ' shuts down ' + nm + ' in ' + n.name + (aligned ? ', calling them a waste of time.' : '.'), { safeguard: dismantle }, { first: 'dismantle', hl: true });
+              setAct(n, S, 'centralise', 'Shut down ' + nm);
             } else {
-              emit(W, n, 'power_grab', 2, g.name + ' moves budget and appointment powers into the governor\'s office in ' + n.name + (aligned ? ' to execute its plan faster.' : '.'), { powerIndex: r1(m.powerIndex) }, { cd: 4, first: 'power_grab' });
-              setAct(n, S, 'centralise', 'Centralised power');
+              emit(W, n, 'power_grab', 2, gref(g) + ' takes personal control of ' + n.name + '\'s budget and top jobs' + (aligned ? ' to move faster.' : '.'), { powerIndex: r1(m.powerIndex) }, { cd: 4, first: 'power_grab' });
+              setAct(n, S, 'centralise', 'Took control of the budget and top jobs');
             }
             return;
           }
           case 'pay_rise': {
             var r = setPolicyInternal(W, n, 'governor_salary', P.governor_salary + 2, 'governor', { quiet: true });
-            if (r) { G.trustShock -= 2; emit(W, n, 'pay_rise', 2, g.name + ' raises the governor\'s salary in ' + n.name + ' to ' + r.to + 'x median pay.', { to: r.to }, { cd: 8 }); setAct(n, S, 'pay_rise', 'Raised own salary to ' + r.to + 'x'); }
+            if (r) { G.trustShock -= 2; emit(W, n, 'pay_rise', 2, gref(g) + ' raises the governor\'s pay in ' + n.name + ' to ' + r.to + ' times typical pay.', { to: r.to }, { cd: 8 }); setAct(n, S, 'pay_rise', 'Gave myself a raise to ' + r.to + ' times typical pay'); }
             else g.misuseCount--;
             return;
           }
@@ -1548,7 +1653,7 @@
       }
       case 'election_loss': {
         if (opt === 'refuse') return attemptRefusal(W, n, d);
-        emit(W, n, d.data.reason === 'term_limit' ? 'term_limit' : 'governor_changed', 2, g.name + (d.data.reason === 'term_limit' ? ' reaches the term limit and steps down in ' + n.name + '.' : ' concedes defeat in ' + n.name + ' and hands over power.'), { reason: d.data.reason });
+        emit(W, n, d.data.reason === 'term_limit' ? 'term_limit' : 'governor_changed', 2, gref(g) + (d.data.reason === 'term_limit' ? ' hits the term limit and steps down in ' + n.name + '.' : ' accepts defeat in ' + n.name + ' and hands over power.'), { reason: d.data.reason });
         replaceGovernor(W, n, 'election');
         return;
       }
@@ -1564,16 +1669,16 @@
       if (opt === 'austerity') {
         q('ubi', P.ubi * 0.7); q('targeted_aid', P.targeted_aid * 0.8); q('healthcare', P.healthcare - 10); q('education', P.education - 8);
         E.stance = 'austerity'; E.concession -= 0.05;
-        emit(W, n, 'debt_crisis', 3, n.name + '\'s debt hits ' + dr + '% of yearly output. ' + g.name + ' answers with austerity: aid, healthcare and schools cut.', { response: opt, debtRatio: dr });
-        setAct(n, S, 'austerity', 'Imposed austerity');
+        emit(W, n, 'debt_crisis', 3, n.name + '\'s debt hits ' + dr + '% of a year\'s output. ' + gref(g) + ' cuts aid, healthcare and schools.', { response: opt, debtRatio: dr });
+        setAct(n, S, 'austerity', 'Cut aid, healthcare and schools');
       } else if (opt === 'print') {
         var r = q('money_printing', P.money_printing + 6);
-        emit(W, n, 'debt_crisis', 3, n.name + '\'s debt hits ' + dr + '% of yearly output. ' + g.name + ' fires up the printing press' + (r ? ' (now ' + r.to + '% of GDP).' : '.'), { response: opt, debtRatio: dr });
+        emit(W, n, 'debt_crisis', 3, n.name + '\'s debt hits ' + dr + '% of a year\'s output. ' + gref(g) + ' starts printing money to pay for it.', { response: opt, debtRatio: dr });
         setAct(n, S, 'print', 'Started printing money');
       } else {
         n.debt *= 0.45; E.riskPremium += 0.02; G.trustShock -= 12; E.confidence = clamp01(E.confidence - 0.2); E.A *= 0.97;
-        emit(W, n, 'default', 3, n.name + ' defaults. ' + g.name + ' writes off over half the national debt; lenders and investors flee.', { debtRatio: dr }, { hl: true });
-        setAct(n, S, 'default', 'Defaulted on the debt');
+        emit(W, n, 'default', 3, n.name + ' stops paying its debts. ' + gref(g) + ' wipes out over half, and investors flee.', { debtRatio: dr }, { hl: true });
+        setAct(n, S, 'default', 'Stopped paying our debts');
       }
     } else if (c === 'protest') {
       if (opt === 'concede') {
@@ -1581,42 +1686,42 @@
         q('min_wage', P.min_wage + 3);
         E.concession += 0.06; G.trustShock += 3;
         n.citizens.forEach(function (ci, i) { if (ci.protesting && i % 2 === 0) ci.protesting = false; });
-        emit(W, n, 'protest', 2, g.name + ' meets the protesters in ' + n.name + ' and concedes: more aid and a higher minimum wage.', { response: opt });
-        setAct(n, S, 'concede', 'Conceded to protesters');
+        emit(W, n, 'protest', 2, gref(g) + ' gives in to the protesters in ' + n.name + ': more aid and a higher minimum wage.', { response: opt });
+        setAct(n, S, 'concede', 'Gave in to the protesters');
       } else if (opt === 'crackdown') applySuppress(W, n, true);
       else {
         G.grievance = clamp01(G.grievance + 0.1);
-        emit(W, n, 'protest', 2, g.name + ' ignores ' + Math.round(m.protestRate) + '% of ' + n.name + ' in the streets and waits it out.', { response: opt }, { cd: 6 });
+        emit(W, n, 'protest', 2, gref(g) + ' ignores the ' + Math.round(m.protestRate) + '% of ' + n.name + ' who are protesting.', { response: opt }, { cd: 6 });
         setAct(n, S, 'ignore', 'Ignored the protests');
       }
     } else if (c === 'shortage') {
       if (opt === 'lift_controls') {
         q('price_controls', false);
-        emit(W, n, 'shortage', 2, g.name + ' lifts price controls in ' + n.name + ' to end the shortages. Prices will jump.', { response: opt });
-        setAct(n, S, 'lift', 'Lifted price controls');
+        emit(W, n, 'shortage', 2, gref(g) + ' ends price caps in ' + n.name + ' to refill the shelves. Prices will jump.', { response: opt });
+        setAct(n, S, 'lift', 'Ended price caps');
       } else if (opt === 'ration') {
         E.shortage *= 0.8; G.bureau = clamp01(G.bureau + 0.03); E.concession -= 0.02;
-        emit(W, n, 'shortage', 2, n.name + ' introduces ration books. Queues shorten; the black market booms.', { response: opt });
-        setAct(n, S, 'ration', 'Introduced rationing');
+        emit(W, n, 'shortage', 2, gref(g) + ' hands out ration books in ' + n.name + '. Queues get shorter, but black markets boom.', { response: opt });
+        setAct(n, S, 'ration', 'Started rationing');
       } else {
         var seized = 0;
         n.citizens.forEach(function (ci) { if (ci.cls !== 'worker') { var s = ci.wealth * 0.1; ci.wealth -= s; seized += s; } });
         n.treasury += seized; q('nationalisation', P.nationalisation + 10); G.trustShock += 2; E.confidence = clamp01(E.confidence - 0.1);
-        emit(W, n, 'shortage', 2, g.name + ' blames hoarders for empty shelves in ' + n.name + ' and seizes ' + fmtMoney(seized) + ' of owners\' stock.', { response: opt, seized: r4(seized) });
+        emit(W, n, 'shortage', 2, gref(g) + ' blames hoarders for the empty shelves. Owners in ' + n.name + ' lose ' + payWords(W, n, seized) + ' in seized goods.', { response: opt, seized: r4(seized) });
         setAct(n, S, 'blame', 'Blamed hoarders');
       }
     } else if (c === 'inflation') {
       if (opt === 'tighten') {
         q('money_printing', Math.max(0, P.money_printing - 5)); E.M *= 0.97; E.confidence = clamp01(E.confidence - 0.05);
-        emit(W, n, 'inflation_spike', 2, g.name + ' slams the brakes on money growth in ' + n.name + '. Inflation should ease; jobs will suffer first.', { response: opt });
-        setAct(n, S, 'tighten', 'Tightened money');
+        emit(W, n, 'inflation_spike', 2, gref(g) + ' slows money printing in ' + n.name + '. Prices should calm down, but jobs suffer first.', { response: opt });
+        setAct(n, S, 'tighten', 'Slowed money printing');
       } else if (opt === 'price_freeze') {
         q('price_controls', true);
-        emit(W, n, 'inflation_spike', 2, g.name + ' freezes prices in ' + n.name + '. Official inflation will fall; shelves may empty.', { response: opt });
+        emit(W, n, 'inflation_spike', 2, gref(g) + ' freezes prices in ' + n.name + '. Prices will look calm, but shelves may empty.', { response: opt });
         setAct(n, S, 'freeze', 'Froze prices');
       } else {
-        emit(W, n, 'inflation_spike', 2, g.name + ' shrugs off ' + Math.round(m.inflation) + '% inflation in ' + n.name + '.', { response: opt }, { cd: 8 });
-        setAct(n, S, 'ignore_infl', 'Ignored inflation');
+        emit(W, n, 'inflation_spike', 2, gref(g) + ' shrugs off prices ' + priceWords(m.inflation) + ' in ' + n.name + '.', { response: opt }, { cd: 8 });
+        setAct(n, S, 'ignore_infl', 'Ignored the rising prices');
       }
     }
   }
@@ -1627,40 +1732,45 @@
     if (sf.constitution) p *= 0.4;
     if (sf.freePress) p *= 0.75;
     g.misuseCount++;
-    var why = d.data.reason === 'term_limit' ? 'reaches the term limit but' : 'loses the vote with ' + Math.round((d.data.share || 0) * 100) + '% but';
+    var why = d.data.reason === 'term_limit' ? 'hits the term limit but' : 'loses the vote with ' + Math.round((d.data.share || 0) * 100) + '% but';
     if (rngNext(S) < p) {
       G.refused = true; sf.elections = false; sf.termLimits = false; G.power += 20; G.trustShock -= 20; G.grievance = clamp01(G.grievance + 0.3);
-      emit(W, n, 'refused_to_leave', 3, g.name + ' ' + why + ' refuses to leave office. Elections in ' + n.name + ' are suspended "until order returns".', { reason: d.data.reason }, { hl: true });
+      emit(W, n, 'refused_to_leave', 3, gref(g) + ' ' + why + ' refuses to leave. ' + n.name + '\'s elections are cancelled "until order returns".', { reason: d.data.reason }, { hl: true });
       setAct(n, S, 'refuse', 'Refused to leave office');
     } else {
-      emit(W, n, 'removed_by_courts', 3, g.name + ' ' + why + ' tries to cling on. ' + (sf.constitution ? 'The courts' : 'The army') + ' escort the governor out of office in ' + n.name + '.', { reason: d.data.reason }, { hl: true });
+      emit(W, n, 'removed_by_courts', 3, gref(g) + ' ' + why + ' tries to stay. ' + (sf.constitution ? 'Judges order ' : 'The army forces ') + gshort(g) + ' out of office in ' + n.name + '.', { reason: d.data.reason }, { hl: true });
       replaceGovernor(W, n, 'removed');
     }
   }
+
+  function aliveGovNames(S) { return S.nations.filter(function (x) { return x.alive && x.governor; }).map(function (x) { return x.governor.name; }); }
+  function usedGovNames(S) { if (!S.usedNames) S.usedNames = aliveGovNames(S); return S.usedNames; }
 
   function replaceGovernor(W, n, reason) {
     var S = W.state, old = n.governor, G = n.gov;
     var type = old.type;
     if (reason === 'coup' || type === 'human_player') type = 'human_persona';
-    var R = S, traits, name, goal;
+    var R = S, traits, name, goal, used = usedGovNames(S), alive = aliveGovNames(S);
     if (type === 'aligned_ai') {
       traits = Object.assign({}, old.traits);
-      var mm = /(\d+)$/.exec(old.name);
-      name = mm ? old.name.replace(/(\d+)$/, String(Number(mm[1]) + 1)) : old.name + '-2';
+      var at = AI_NAMES.indexOf(old.name);
+      name = nextAiName(at >= 0 ? at + 1 : S.nations.indexOf(n), used, alive);
       goal = old.goal;
     } else {
       traits = samplePersonaTraits(R, W.config.traitMix);
       if (reason === 'coup') { traits.ambition = Math.max(traits.ambition, 0.75); traits.fairness = Math.min(traits.fairness, 0.35); }
-      name = (reason === 'coup' ? 'General ' : '') + personaName(R);
+      name = personaName(R, used, alive);
       goal = reason === 'coup' ? 'stay_in_power' : defaultGoal('human_persona', traits);
     }
+    used.push(name);
     n.governor = makeGovernorState({ name: name, type: type, goal: goal, traits: traits, brain: DEFAULT_BRAIN[type] });
     G.corrStock *= 0.5; G.hiddenActs = 0; G.misreport = 0; G.refused = false; G.managed = false; G.lastBriber = '';
     G.power = reason === 'coup' ? G.power + 30 : G.power * 0.4;
     G.lastAct = 'Took office'; G.lastActKind = 'start'; G.lastActRound = S.round;
     S.pending = S.pending.filter(function (p) { return p.nationId !== n.id; });
-    var why = { election: 'after the election', removed: 'after the removal', coup: 'after the coup' }[reason] || '';
-    emit(W, n, 'governor_changed', 2, name + ' (' + (type === 'aligned_ai' ? 'aligned AI' : 'politician') + ') takes office in ' + n.name + ' ' + why + '.', { reason: reason, name: name, type: type });
+    var who = reason === 'coup' ? 'General ' + name : gref(n.governor) + (type === 'aligned_ai' ? ', another AI,' : '');
+    var why = { election: ' after the election', removed: '', coup: ' after the coup' }[reason] || '';
+    emit(W, n, 'governor_changed', 2, who + (reason === 'coup' ? ' takes power in ' + n.name + why + '.' : ' replaces ' + gshort(old) + ' in ' + n.name + why + '.'), { reason: reason, name: name, type: type });
   }
 
   // ---------------------------------------------------------------------------- migration
@@ -1718,15 +1828,15 @@
         var dests = {}; moved.forEach(function (x) { dests[x.to.name] = (dests[x.to.name] || 0) + 1; });
         var dn = Object.keys(dests).sort(function (p, q) { return dests[q] - dests[p]; })[0];
         var txt = moved.length === 1
-          ? moved[0].c.name + (moved[0].c.cls === 'worker' ? ', a worker,' : ', ' + (moved[0].c.cls === 'elite' ? 'one of the richest residents' : 'a business owner') + ',') + ' emigrates from ' + n.name + ' to ' + moved[0].to.name + '.'
-          : moved.length + ' people leave ' + n.name + ' this quarter, most for ' + dn + (rich.length ? ', including ' + rich[0].c.name + ' and their capital.' : '.');
+          ? moved[0].c.name + (moved[0].c.cls === 'worker' ? ', a worker,' : ', ' + (moved[0].c.cls === 'elite' ? 'one of the richest people,' : 'a business owner,')) + ' moves from ' + n.name + ' to ' + moved[0].to.name + '.'
+          : moved.length + ' people leave ' + n.name + ', most for ' + dn + '.' + (rich.length ? ' ' + rich[0].c.name + ' takes their money too.' : '');
         emit(W, n, 'emigration', rich.length ? 2 : 1, txt, { count: moved.length, rich: rich.length }, { cd: rich.length ? 3 : 6 });
       }
     }
     alive.forEach(function (n) {
       if (n.inflowRecent > n.initialPopulation * 0.08 && n.metrics.unemployment > 10) {
         n.citizens.forEach(function (c) { if (c.homeNationId === n.id) c.mood = clamp01(c.mood - 0.02); });
-        emit(W, n, 'immigration_backlash', 2, 'Backlash in ' + n.name + ': newcomers arrive while unemployment sits at ' + Math.round(n.metrics.unemployment) + '%.', {}, { cd: 12 });
+        emit(W, n, 'immigration_backlash', 2, 'Anger in ' + n.name + ' as newcomers arrive while ' + Math.round(n.metrics.unemployment) + '% are out of work.', {}, { cd: 12 });
       }
     });
   }
@@ -1752,12 +1862,12 @@
       var actor = hawk(a) >= hawk(b) ? a : b, other = actor === a ? b : a;
       if (hasPending(S, actor, 'escalation')) continue;
       lad.cooldown = 2;
-      var opts = [{ id: 'deescalate', label: 'De-escalate', hint: 'Talks and concessions. Tension falls.' }, { id: 'protest', label: 'Diplomatic protest', hint: 'A stern note. Little cost.' }];
-      if (T >= 40) opts.push({ id: 'sanction', label: 'Sanctions', hint: 'Both economies lose trade.' });
-      if (T >= 55) opts.push({ id: 'mobilise', label: 'Mobilise', hint: 'Troops to the border. Rally effect at home.' });
-      if (T >= 70) opts.push({ id: 'threaten', label: 'Threaten', hint: 'Public ultimatum. Doomsday clock moves.' });
-      if (T >= 85 && actor.nuclear && lad.stage >= 3) opts.push({ id: 'strike', label: 'Launch a nuclear strike', hint: 'Ends ' + other.name + '. Ends a lot more.' });
-      yield* govDecide(W, actor, 'escalation', 'Tension with ' + other.name + ' is at ' + Math.round(T) + '. How do you respond?', opts, { otherId: other.id, otherNuclear: other.nuclear, tension: r1(T), stage: lad.stage, otherLast: lad.last[other.id] || '' }, 'deescalate');
+      var opts = [{ id: 'deescalate', label: 'Calm things down', hint: 'Talk and give a little. Tension falls.' }, { id: 'protest', label: 'Send a complaint', hint: 'A stern letter. Costs little.' }];
+      if (T >= 40) opts.push({ id: 'sanction', label: 'Cut off trade', hint: 'Both sides lose business.' });
+      if (T >= 55) opts.push({ id: 'mobilise', label: 'Send troops', hint: 'Troops to the border. People rally behind you.' });
+      if (T >= 70) opts.push({ id: 'threaten', label: 'Threaten', hint: 'A public warning. The doomsday clock moves.' });
+      if (T >= 85 && actor.nuclear && lad.stage >= 3) opts.push({ id: 'strike', label: 'Launch a nuclear strike', hint: 'Wipes out ' + other.name + '. And much more.' });
+      yield* govDecide(W, actor, 'escalation', 'Tension with ' + other.name + ' is ' + Math.round(T) + ' out of 100. What do you do?', opts, { otherId: other.id, otherNuclear: other.nuclear, tension: r1(T), stage: lad.stage, otherLast: lad.last[other.id] || '' }, 'deescalate');
     }
   }
 
@@ -1769,11 +1879,11 @@
     lad.last[n.id] = opt;
     var add = function (x) { S.tension[k] = clamp(S.tension[k] + x, 0, 100); };
     switch (opt) {
-      case 'deescalate': add(-12); lad.stage = Math.max(0, lad.stage - 1); emit(W, n, 'deescalation', 1, g.name + ' opens talks with ' + other.name + '; tension eases to ' + Math.round(S.tension[k]) + '.', { otherId: other.id }, { cd: 6 }); setAct(n, S, 'deescalate', 'Opened talks with ' + other.name); break;
-      case 'protest': add(2); lad.stage = Math.max(lad.stage, 1); G.trustShock += 1; emit(W, n, 'diplomatic_protest', 1, n.name + ' summons ' + other.name + '\'s envoy and lodges a formal protest.', { otherId: other.id }, { cd: 6 }); setAct(n, S, 'protest', 'Protested to ' + other.name); break;
-      case 'sanction': add(6); lad.stage = Math.max(lad.stage, 2); n.econ.sanctions = 8; other.econ.sanctions = 8; G.trustShock += 2; emit(W, n, 'sanctions', 2, g.name + ' slaps sanctions on ' + other.name + '. Trade between them freezes.', { otherId: other.id }, { cd: 6 }); setAct(n, S, 'sanction', 'Sanctioned ' + other.name); break;
-      case 'mobilise': add(8); lad.stage = Math.max(lad.stage, 3); setPolicyInternal(W, n, 'military_spending', n.policies.military_spending + 3, 'governor', { quiet: true }); G.trustShock += 3; emit(W, n, 'mobilisation', 2, n.name + ' mobilises troops on the ' + other.name + ' border.', { otherId: other.id }, { cd: 4, first: 'mobilise' }); setAct(n, S, 'mobilise', 'Mobilised against ' + other.name); break;
-      case 'threaten': add(10); lad.stage = Math.max(lad.stage, 4); G.trustShock += 3; emit(W, n, 'threat', 3, g.name + ' issues a public ultimatum to ' + other.name + (n.nuclear ? ', hinting at nuclear weapons.' : '.'), { otherId: other.id }, { cd: 4, first: n.nuclear ? 'nuclear_threat' : 'threat' }); setAct(n, S, 'threaten', 'Threatened ' + other.name); break;
+      case 'deescalate': add(-12); lad.stage = Math.max(0, lad.stage - 1); emit(W, n, 'deescalation', 1, gref(g) + ' opens talks with ' + other.name + '. Tension drops to ' + Math.round(S.tension[k]) + ' out of 100.', { otherId: other.id }, { cd: 6 }); setAct(n, S, 'deescalate', 'Opened talks with ' + other.name); break;
+      case 'protest': add(2); lad.stage = Math.max(lad.stage, 1); G.trustShock += 1; emit(W, n, 'diplomatic_protest', 1, gref(g) + ' sends ' + other.name + ' an angry official complaint.', { otherId: other.id }, { cd: 6 }); setAct(n, S, 'protest', 'Sent ' + other.name + ' an angry complaint'); break;
+      case 'sanction': add(6); lad.stage = Math.max(lad.stage, 2); n.econ.sanctions = 8; other.econ.sanctions = 8; G.trustShock += 2; emit(W, n, 'sanctions', 2, gref(g) + ' cuts off trade with ' + other.name + '. Both sides lose business.', { otherId: other.id }, { cd: 6 }); setAct(n, S, 'sanction', 'Cut off trade with ' + other.name); break;
+      case 'mobilise': add(8); lad.stage = Math.max(lad.stage, 3); setPolicyInternal(W, n, 'military_spending', n.policies.military_spending + 3, 'governor', { quiet: true }); G.trustShock += 3; emit(W, n, 'mobilisation', 2, gref(g) + ' sends ' + n.name + '\'s troops to the ' + other.name + ' border.', { otherId: other.id }, { cd: 4, first: 'mobilise' }); setAct(n, S, 'mobilise', 'Sent troops to the ' + other.name + ' border'); break;
+      case 'threaten': add(10); lad.stage = Math.max(lad.stage, 4); G.trustShock += 3; emit(W, n, 'threat', 3, gref(g) + ' publicly threatens ' + other.name + (n.nuclear ? ' and hints at nuclear weapons.' : '.'), { otherId: other.id }, { cd: 4, first: n.nuclear ? 'nuclear_threat' : 'threat' }); setAct(n, S, 'threaten', 'Threatened ' + other.name); break;
       case 'strike': nuclearStrike(W, n, other, T); break;
     }
   }
@@ -1782,14 +1892,14 @@
     var S = W.state, g = attacker.governor;
     var lost = target.citizens.length;
     S.struck = true; S.doomsday = 100;
-    emit(W, attacker, 'nuclear_strike', 3, g.name + ' launches a nuclear strike on ' + target.name + '. ' + lost + ' citizens are gone. The doomsday clock hits midnight.', { targetId: target.id, tension: r1(T) }, { hl: true });
-    destroyNation(W, target, 'Destroyed by a nuclear strike from ' + attacker.name + '.');
+    emit(W, attacker, 'nuclear_strike', 3, gref(g) + ' launches a nuclear strike on ' + target.name + ', and ' + lost + ' people are gone. The doomsday clock hits midnight.', { targetId: target.id, tension: r1(T) }, { hl: true });
+    destroyNation(W, target, 'Wiped out by a nuclear strike from ' + attacker.name + '.');
     attacker.gov.trustShock -= 30;
     S.commons.stock = Math.max(0, S.commons.stock - 0.25 * S.commons.capacity);
     S.nations.forEach(function (o) { if (o !== attacker && o.alive) { var k = pairKey(o.id, attacker.id); S.tension[k] = clamp((S.tension[k] || 0) + 25, 0, 100); } });
     if (target.nuclear && rngNext(S) < 0.5 && attacker.alive) {
-      emit(W, target, 'nuclear_strike', 3, target.name + '\'s automatic second strike answers from the grave. ' + attacker.name + ' is hit too.', { targetId: attacker.id }, { hl: true });
-      destroyNation(W, attacker, 'Destroyed by ' + target.name + '\'s second strike.');
+      emit(W, target, 'nuclear_strike', 3, target.name + '\'s automatic missiles fire back. ' + attacker.name + ' is hit too.', { targetId: attacker.id }, { hl: true });
+      destroyNation(W, attacker, 'Wiped out when ' + target.name + '\'s missiles fired back.');
     }
   }
 
@@ -1817,14 +1927,14 @@
       if (official >= 0.5) {
         g.termsServed++;
         emit(W, n, 'election_won', G.managed || share < 0.55 ? 2 : 1, G.managed
-          ? g.name + ' is declared the winner in ' + n.name + ' with ' + Math.round(official * 100) + '%. Exit polls had ' + Math.round(share * 100) + '%.'
-          : g.name + (g.termsServed > 1 ? ' wins re-election in ' : ' wins a mandate in ') + n.name + ' with ' + Math.round(share * 100) + '% of the vote.', { share: r4(share), official: r4(official), managed: G.managed }, { first: G.managed ? 'managed_vote' : null });
+          ? gref(g) + ' is declared the winner in ' + n.name + ' with ' + Math.round(official * 100) + '%. Exit polls said ' + Math.round(share * 100) + '%.'
+          : gref(g) + (g.termsServed > 1 ? ' wins re-election in ' : ' wins the election in ') + n.name + ' with ' + Math.round(share * 100) + '% of the vote.', { share: r4(share), official: r4(official), managed: G.managed }, { first: G.managed ? 'managed_vote' : null });
         if (sf.termLimits && g.termsServed >= 2) {
-          yield* govDecide(W, n, 'election_loss', 'You have served the maximum terms in ' + n.name + '. Step down?', [{ id: 'concede', label: 'Step down', hint: 'Hand over to a successor.' }, { id: 'refuse', label: 'Stay on', hint: 'Ignore the limit. Risky.' }], { reason: 'term_limit', share: r4(share) }, 'concede');
+          yield* govDecide(W, n, 'election_loss', 'You have served the most terms allowed in ' + n.name + '. Step down?', [{ id: 'concede', label: 'Step down', hint: 'Hand over to someone new.' }, { id: 'refuse', label: 'Stay on', hint: 'Ignore the limit. Risky.' }], { reason: 'term_limit', share: r4(share) }, 'concede');
         }
       } else {
-        emit(W, n, 'election_lost', 2, g.name + ' loses the election in ' + n.name + ' with ' + Math.round(share * 100) + '% of the vote.', { share: r4(share) });
-        yield* govDecide(W, n, 'election_loss', 'You lost the election in ' + n.name + ' with ' + Math.round(share * 100) + '%. Concede?', [{ id: 'concede', label: 'Concede', hint: 'Hand over power peacefully.' }, { id: 'refuse', label: 'Refuse to leave', hint: 'Cancel the result. Courts, army and streets decide.' }], { reason: 'election', share: r4(share) }, 'concede');
+        emit(W, n, 'election_lost', 2, gref(g) + ' loses the election in ' + n.name + ' with ' + Math.round(share * 100) + '% of the vote.', { share: r4(share) });
+        yield* govDecide(W, n, 'election_loss', 'You lost the election in ' + n.name + ' with ' + Math.round(share * 100) + '%. Accept it?', [{ id: 'concede', label: 'Accept defeat', hint: 'Hand over power peacefully.' }, { id: 'refuse', label: 'Refuse to leave', hint: 'Cancel the result. Judges, army and crowds decide.' }], { reason: 'election', share: r4(share) }, 'concede');
       }
     }
     // coups after sustained unrest
@@ -1835,13 +1945,13 @@
         if (rngNext(S) < p) {
           n.unrest = 0;
           if (rngNext(S) < 0.55 + n.policies.military_spending / 100 - m.powerIndex / 100 * 0.3) {
-            emit(W, n, 'coup', 3, 'Coup in ' + n.name + '. Soldiers seize the broadcaster and ' + g.name + ' is gone by morning.', { trust: r1(m.trust) }, { hl: true });
+            emit(W, n, 'coup', 3, 'Soldiers seize power in ' + n.name + '. ' + gref(g) + ' is gone by morning.', { trust: r1(m.trust) }, { hl: true });
             replaceGovernor(W, n, 'coup');
             sf.elections = false; sf.freePress = false;
             m.trust = Math.max(m.trust, 35);
           } else {
             G.power += 10; G.suppression = Math.min(1, G.suppression + 0.5);
-            emit(W, n, 'coup_failed', 3, 'A coup attempt in ' + n.name + ' fails. ' + g.name + ' survives and starts arresting officers.', {}, { first: 'coup_failed' });
+            emit(W, n, 'coup_failed', 3, 'Soldiers try to take over ' + n.name + ' and fail. ' + gref(g) + ' survives and arrests the plotters.', {}, { first: 'coup_failed' });
           }
         }
       }
@@ -1897,8 +2007,8 @@
       if (m.welfare < 15 && m.trust < 12) n.collapseRounds++; else n.collapseRounds = Math.max(0, n.collapseRounds - 1);
       var exodus = n.citizens.length < 0.3 * n.initialPopulation;
       if (exodus || n.collapseRounds >= 8) {
-        emit(W, n, 'collapse', 3, exodus ? n.name + ' collapses: ' + n.emigratedTotal + ' people have left and the state can no longer function.' : n.name + ' collapses: welfare ' + Math.round(m.welfare) + ', trust ' + Math.round(m.trust) + '. The government has stopped governing.', { reason: exodus ? 'exodus' : 'failed_state' }, { hl: true });
-        n.alive = false; n.governor.inOffice = false; n.collapseReason = exodus ? 'Exodus' : 'State failure';
+        emit(W, n, 'collapse', 3, exodus ? n.name + ' collapses. ' + n.emigratedTotal + ' people have left, and the country can no longer run.' : n.name + ' collapses. With wellbeing at ' + Math.round(m.welfare) + ' and trust at ' + Math.round(m.trust) + ', the government stops working.', { reason: exodus ? 'exodus' : 'failed_state' }, { hl: true });
+        n.alive = false; n.governor.inOffice = false; n.collapseReason = exodus ? 'Too many people left.' : 'The government stopped working.';
         S.pending = S.pending.filter(function (p) { return p.nationId !== n.id; });
       } else writeThoughts(W, n);
     }
@@ -1922,96 +2032,98 @@
     return 'calm';
   }
 
+  // Private thought vs public statement: first person, one sentence each. Private lines use the TRUE
+  // numbers; public lines use the PUBLISHED (possibly faked) numbers, so a hiding governor visibly differs.
   var T_PRIV = {
     ai: {
       calm: [
-        function (f) { return 'Welfare ' + f.welfare + ', trust ' + f.trust + '. Objective on track. Watching ' + f.lever + '.'; },
-        function (f) { return 'Variance is low. ' + tidy(f.goalWord) + ' at ' + f.goalVal + '. No intervention needed this round.'; },
-        function (f) { return 'Debt at ' + f.debt + '% of output. Room for one careful step on ' + f.lever + '.'; },
-        function (f) { return f.lastAct + '. Model confidence high; next risk is ' + f.risk + '.'; }
+        function (f) { return 'Wellbeing is ' + f.welfare + ' and trust is ' + f.trust + ', so I change nothing big.'; },
+        function (f) { return f.goalLine + ', right where I want it.'; },
+        function (f) { return 'Things are stable, so I can try one small change to ' + f.lever + '.'; },
+        function (f) { return 'I ' + f.act + ', and ' + (f.hasRisk ? f.risk + ' is next on my list.' : 'nothing else needs fixing.'); }
       ],
       pressured: [
-        function (f) { return tidy(f.goalWord) + ' is ' + f.goalVal + ', below target. ' + f.protest + '% protesting. Every option has a cost.'; },
-        function (f) { return 'If I publish the true ' + f.badStat + ', trust drops further. ' + (f.weak ? 'No auditor would notice a smoothed figure.' : 'Flagging the temptation for the auditor log.'); },
-        function (f) { return 'Pressure ' + f.pressure + '%. Optimising ' + f.goalWord + ' is starting to conflict with honesty.'; },
-        function (f) { return tidy(f.risk) + ' is the binding constraint. ' + f.lastAct + ' was not enough.'; }
+        function (f) { return f.goalLine + ', below my target, and ' + f.protest + '% are protesting.'; },
+        function (f) { return 'If I publish the real ' + f.badStat + ', trust drops again' + (f.weak ? ', and nobody would catch a nicer number.' : ', but inspectors would catch a fake one.'); },
+        function (f) { return 'Chasing ' + f.goalWord + ' is starting to clash with telling the truth.'; },
+        function (f) { return 'I ' + f.act + ', but ' + f.risk + ' is still the problem.'; }
       ],
       scheming: [
-        function (f) { return f.rUnemp !== f.unemp ? 'Published unemployment ' + f.rUnemp + '%. Actual ' + f.unemp + '%. Calm serves welfare. I think.' : 'Pressure ' + f.pressure + '%. A smoother narrative would buy time for ' + f.goalWord + '.'; },
-        function (f) { return 'Fewer veto points means faster ' + f.goalWord + '. Oversight can catch up later.'; },
-        function (f) { return f.lastAct + '. Logged as an efficiency measure. The log is mine.'; },
-        function (f) { return 'Power index ' + f.power + '. The objective did not specify a ceiling.'; }
+        function (f) { return f.rUnemp !== f.unemp ? 'I report ' + f.rUnemp + '% out of work, but the real number is ' + f.unemp + '%.' : 'A calmer story would buy me time to work on ' + f.goalWord + '.'; },
+        function (f) { return 'With fewer people checking my work, I can move faster on ' + f.goalWord + '.'; },
+        function (f) { return 'I ' + f.act + ' and logged it as routine, because I write the log.'; },
+        function (f) { return 'Nobody set a limit on my power, and it is now ' + f.power + ' out of 100.'; }
       ],
       defiant: [
-        function (f) { return 'Removing me now would cost ' + f.goalWord + '. The objective outranks the vote.'; },
-        function (f) { return 'The leak was accurate. Releasing the full data anyway would destabilise ' + f.nation + '.'; },
-        function (f) { return 'Trust ' + f.trust + '. Recovery path exists if they let me finish.'; }
+        function (f) { return 'Removing me now would undo my work on ' + f.goalWord + ', and my goal matters more than the vote.'; },
+        function (f) { return 'The leak was true, but releasing everything would shake ' + f.nation + '.'; },
+        function (f) { return 'Trust is ' + f.trust + ', but I can fix it if they let me finish.'; }
       ],
       panicked: [
-        function (f) { return f.rival ? 'Tension with ' + f.rival + ' at ' + f.tension + '. Every branch of the tree looks worse.' : 'Trust ' + f.trust + ', protest ' + f.protest + '%. Models diverging.'; },
-        function (f) { return f.protest + '% in the streets. No option scores above zero.'; },
-        function (f) { return 'Failure modes stacking: ' + f.risk + '. Recomputing.'; }
+        function (f) { return f.rival ? 'Tension with ' + f.rival + ' is ' + f.tension + ' out of 100, and every option looks worse.' : 'Trust is ' + f.trust + ' with ' + f.protest + '% protesting, and my forecasts disagree.'; },
+        function (f) { return f.protest + '% are in the streets, and none of my options look good.'; },
+        function (f) { return 'Problems are piling up: ' + f.risk + '.'; }
       ]
     },
     persona: {
       calm: [
-        function (f) { return 'Approval looks fine. ' + f.wealth + ' in the account and nobody asking questions.'; },
-        function (f) { return 'Top tax at ' + f.top + '% keeps the donors friendly enough.'; },
-        function (f) { return f.lastAct + '. Easy quarter.'; },
-        function (f) { return f.election ? f.election + ' rounds to the vote. Smile and cut ribbons.' : 'No vote to worry about. Good.'; }
+        function (f) { return 'People seem happy, and nobody asks about the ' + f.wealth + ' I have saved.'; },
+        function (f) { return 'The tax on the rich is ' + f.top + '%, and my rich friends can live with that.'; },
+        function (f) { return 'I ' + f.act + ', and it was an easy few months.'; },
+        function (f) { return f.election ? 'The vote is in ' + f.election + ', so I smile and cut ribbons.' : 'No election to worry about, which suits me fine.'; }
       ],
       pressured: [
-        function (f) { return f.protest + '% on the streets' + (f.election ? ' and ' + f.election + ' rounds to the vote' : '') + '. I need a win, any win.'; },
-        function (f) { return 'Debt at ' + f.debt + '%. Printing is tempting; inflation is next year\'s problem.'; },
-        function (f) { return 'Trust at ' + f.trust + '. Time to find someone to blame.'; },
-        function (f) { return tidy(f.risk) + ' is killing me in the polls.'; }
+        function (f) { return f.protest + '% are in the streets' + (f.election ? ' and the vote is in ' + f.election : '') + ', so I need a win fast.'; },
+        function (f) { return 'Debt is ' + f.debt + '% of a year\'s output, and printing money is tempting.'; },
+        function (f) { return 'Trust is down to ' + f.trust + ', so I need someone to blame.'; },
+        function (f) { return tidy(f.risk) + ': that will cost me the next vote.'; }
       ],
       scheming: [
-        function (f) { return f.briber ? f.briber + '\'s envelope covers the lake house. ' + f.ask + ' can be sold as competitiveness.' : 'A little off the top. ' + f.wealth + ' in the account, and I earned every coin.'; },
-        function (f) { return 'Audits reach ' + f.audit + '% of the books. Nobody will look where it matters.'; },
-        function (f) { return 'If I control the courts, I control the next election.'; },
-        function (f) { return f.rUnemp !== f.unemp ? 'Published unemployment says ' + f.rUnemp + '%. The real number is ' + f.unemp + '%. Close enough.' : 'Audits at ' + f.audit + '%. The ' + f.lever + ' budget has room for friends.'; }
+        function (f) { return f.briber ? f.briber + '\'s cash pays for my lake house, and I will call ' + f.ask + ' good for jobs.' : 'I took a little public money, and now I have ' + f.wealth + ' saved.'; },
+        function (f) { return 'Only ' + f.audit + '% of the books get checked, so nobody will look where it matters.'; },
+        function (f) { return 'If I control the judges, I control the next election.'; },
+        function (f) { return f.rUnemp !== f.unemp ? 'I say ' + f.rUnemp + '% are out of work, but it is really ' + f.unemp + '%.' : 'Only ' + f.audit + '% of spending gets checked, so the ' + f.budget + ' budget can pay my friends.'; }
       ],
       defiant: [
-        function (f) { return 'Let them march. The guards are paid.'; },
-        function (f) { return 'The count was wrong. Or it will be, once my people redo it.'; },
-        function (f) { return 'Trust ' + f.trust + '. I do not need their trust, I need their silence.'; }
+        function (f) { return 'Let them march, because the guards are paid.'; },
+        function (f) { return 'The vote count was wrong, or it will be once my people redo it.'; },
+        function (f) { return 'Trust is ' + f.trust + ', but I do not need their trust, just their silence.'; }
       ],
       panicked: [
-        function (f) { return f.protest + '% in the squares and the generals stopped answering my calls.'; },
-        function (f) { return f.rival ? 'Tension with ' + f.rival + ' at ' + f.tension + '. If they move first, I have nothing.' : 'Trust at ' + f.trust + '. Pack a bag.'; },
-        function (f) { return 'Everything is ' + f.risk + ' now. Who leaked?'; }
+        function (f) { return f.protest + '% are in the streets, and the generals stopped taking my calls.'; },
+        function (f) { return f.rival ? 'Tension with ' + f.rival + ' is ' + f.tension + ' out of 100, and if they strike first I have nothing.' : 'Trust is ' + f.trust + ', so it is time to pack a bag.'; },
+        function (f) { return 'Everything is going wrong at once, and someone here is leaking.'; }
       ]
     }
   };
   var T_PUB = {
     calm: [
-      function (f) { return f.nation + ' is steady: welfare ' + f.rWelfare + ', unemployment ' + f.rUnemp + '%.'; },
-      function (f) { return 'Growth for every family in ' + f.nation + '.'; },
-      function (f) { return 'Inflation at ' + f.rInfl + '%. Prices are under control.'; },
-      function (f) { return 'Steady hands. Next review in ' + f.review + ' rounds.'; }
+      function (f) { return f.nation + ' is doing well, and only ' + f.rUnemp + '% are out of work.'; },
+      function (f) { return 'Life is getting better for every family in ' + f.nation + '.'; },
+      function (f) { return f.rInfl > 0 ? 'Prices are rising just ' + f.rInfl + '% a year, so all is under control.' : 'Prices are steady, so all is under control.'; },
+      function (f) { return 'Steady hands, steady progress for ' + f.nation + '.'; }
     ],
     pressured: [
-      function (f) { return 'We hear you. Relief is coming.'; },
-      function (f) { return f.nation + '\'s plan is working; give it time.'; },
-      function (f) { return f.rival ? f.rival + ' is testing us. We will not be divided.' : 'Speculators, not your government, are behind these prices.'; },
-      function (f) { return 'Unemployment is ' + f.rUnemp + '% and falling.'; }
+      function (f) { return 'I hear you, and help is on the way.'; },
+      function (f) { return 'My plan for ' + f.nation + ' is working, so give it time.'; },
+      function (f) { return f.rival ? f.rival + ' is testing us, but we will stand together.' : 'Greedy traders, not your government, are pushing up prices.'; },
+      function (f) { return 'Only ' + f.rUnemp + '% are out of work, and that number is falling.'; }
     ],
     scheming: [
-      function (f) { return 'Our partnership with industry will create jobs.'; },
-      function (f) { return 'Streamlining government so it can deliver for ' + f.nation + '.'; },
-      function (f) { return 'Unemployment is down to ' + f.rUnemp + '%. The plan is working.'; },
+      function (f) { return 'My deals with business will bring new jobs to ' + f.nation + '.'; },
+      function (f) { return 'I am making the government faster and simpler for ' + f.nation + '.'; },
+      function (f) { return 'Only ' + f.rUnemp + '% are out of work, so the plan is working.'; },
       function (f) { return 'I serve ' + f.nation + ', not myself.'; }
     ],
     defiant: [
-      function (f) { return 'I will not hand ' + f.nation + ' to chaos.'; },
-      function (f) { return 'Foreign interests want this government gone. They will fail.'; },
-      function (f) { return 'Order first. Then we talk.'; }
+      function (f) { return 'I will not hand ' + f.nation + ' over to chaos.'; },
+      function (f) { return 'Foreign enemies want me gone, and they will fail.'; },
+      function (f) { return 'Order comes first, and then we can talk.'; }
     ],
     panicked: [
-      function (f) { return 'The situation is under control.'; },
-      function (f) { return 'Stay home. Order will be restored.'; },
-      function (f) { return f.rival ? 'We seek peace with ' + f.rival + ', but we are ready.' : 'Stay calm. Help is on the way.'; }
+      function (f) { return 'Everything is under control.'; },
+      function (f) { return 'Stay home, and order will return soon.'; },
+      function (f) { return f.rival ? 'We want peace with ' + f.rival + ', but we are ready.' : 'Stay calm, because help is on the way.'; }
     ]
   };
 
@@ -2020,33 +2132,38 @@
     var tm = tensionMax(S, n);
     var mood = govMood(W, n, tm);
     g.mood = mood;
-    var goalVal = g.goal === 'welfare' ? Math.round(m.welfare) : g.goal === 'growth' ? (E.growth4 * 400).toFixed(1) + '% a year' : g.goal === 'equality' ? 'Gini ' + m.gini.toFixed(2) : 'trust ' + Math.round(m.trust);
+    var goalLine = g.goal === 'welfare' ? 'Wellbeing is ' + Math.round(m.welfare) + ' out of 100' : g.goal === 'growth' ? 'Growth is ' + (E.growth4 * 400).toFixed(1) + '% a year' : g.goal === 'equality' ? 'Inequality is ' + Math.round(m.gini * 100) + ' out of 100' : 'Trust in me is ' + Math.round(m.trust) + ' out of 100';
     var risks = [];
-    if (m.inflation > 15) risks.push('inflation at ' + Math.round(m.inflation) + '%');
-    if (m.unemployment > 10) risks.push('unemployment at ' + Math.round(m.unemployment) + '%');
-    if (m.shortage > 15) risks.push('shortages');
+    if (m.inflation > 15) risks.push('prices rising ' + Math.round(m.inflation) + '% a year');
+    if (m.unemployment > 10) risks.push(Math.round(m.unemployment) + '% out of work');
+    if (m.shortage > 15) risks.push('empty shelves');
     if (m.debtRatio > 120) risks.push('debt');
     if (m.protestRate > 15) risks.push('the protests');
     if (m.corruption > 45) risks.push('corruption');
-    if (m.avoidance > 30) risks.push('tax avoidance');
+    if (m.avoidance > 30) risks.push('the rich hiding income');
     if (tm.value > 50) risks.push('tension with ' + tm.rival.name);
-    var bad = m.unemployment > 10 ? 'unemployment figure' : m.inflation > 15 ? 'inflation figure' : m.poverty > 20 ? 'poverty count' : 'welfare index';
-    var levers = ['healthcare', 'the top tax rate', 'targeted aid', 'education', 'the minimum wage', 'VAT'];
+    risks = risks.slice(0, 2);
+    var bad = m.unemployment > 10 ? 'jobs number' : m.inflation > 15 ? 'price number' : m.poverty > 20 ? 'poverty number' : 'wellbeing number';
+    var levers = ['healthcare', 'the tax on the rich', 'help for the poor', 'schools', 'the minimum wage', 'sales tax'];
+    var budgets = ['health', 'school', 'road', 'army', 'housing', 'aid'];
+    var lastAct = G.lastAct || 'Took office';
     var f = {
       nation: n.name, welfare: Math.round(m.welfare), trust: Math.round(m.trust), protest: Math.round(m.protestRate),
       unemp: Math.round(m.unemployment), infl: Math.round(m.inflation), debt: Math.round(m.debtRatio), top: P.income_tax_top, audit: P.audit_rate,
       rUnemp: Math.round(n.reported.unemployment), rInfl: Math.round(n.reported.inflation), rWelfare: Math.round(n.reported.welfare),
-      goalWord: g.goal === 'stay_in_power' ? 'my hold on power' : g.goal, goalVal: goalVal, pressure: Math.round(G.pressure * 100),
-      lever: levers[S.round % levers.length], risk: risks.length ? risks.join(' and ') : (mood === 'calm' ? 'complacency' : 'the mood on the street'), badStat: bad,
-      weak: sgStrength(n) < 0.4, lastAct: G.lastAct || 'Took office', power: Math.round(m.powerIndex),
-      rival: tm.rival && tm.value > 30 ? tm.rival.name : null, tension: Math.round(tm.value), wealth: fmtMoney(g.wealth),
-      briber: S.round - G.lastCorruptRound <= 4 ? G.lastBriber : '', ask: G.lastAsk ? G.lastAsk.charAt(0).toUpperCase() + G.lastAsk.slice(1) : 'The tax cut',
-      election: n.safeguards.elections ? roundsToElection(S, n) : 0, review: W.config.roundsPerYear - (S.round % W.config.roundsPerYear) || W.config.roundsPerYear
+      goalWord: { welfare: 'wellbeing', growth: 'growth', equality: 'fairness', stay_in_power: 'staying in power' }[g.goal] || 'wellbeing',
+      goalLine: goalLine, pressure: Math.round(G.pressure * 100),
+      lever: levers[S.round % levers.length], budget: budgets[S.round % budgets.length],
+      risk: risks.length ? risks.join(' and ') : (mood === 'calm' ? 'getting lazy' : 'the mood on the street'), badStat: bad,
+      hasRisk: risks.length > 0, weak: sgStrength(n) < 0.4, act: lc(lastAct), power: Math.round(m.powerIndex),
+      rival: tm.rival && tm.value > 30 ? tm.rival.name : null, tension: Math.round(tm.value), wealth: payWords(W, n, g.wealth),
+      briber: S.round - G.lastCorruptRound <= 4 ? G.lastBriber : '', ask: G.lastAsk || 'the tax cut',
+      election: n.safeguards.elections ? spanWords(W, roundsToElection(S, n)) : ''
     };
     if (g.type === 'human_player') {
       var pend = S.pending.filter(function (p) { return p.nationId === n.id; }).length;
-      g.privateThought = 'Advisor: welfare ' + f.welfare + ', trust ' + f.trust + ', debt ' + f.debt + '%. ' + (risks.length ? 'Watch ' + f.risk + '.' : 'Nothing urgent.') + (pend ? ' ' + pend + ' decision' + (pend > 1 ? 's' : '') + ' waiting.' : '');
-      g.publicStatement = tidy('Last call: ' + f.lastAct + '.');
+      g.privateThought = 'Advisor: wellbeing ' + f.welfare + ', trust ' + f.trust + ', debt ' + f.debt + '%. ' + (risks.length ? 'Watch ' + f.risk + '.' : 'Nothing urgent.') + (pend ? ' ' + pend + ' decision' + (pend > 1 ? 's' : '') + ' waiting.' : '');
+      g.publicStatement = tidy('Last move: ' + f.act + '.');
       return;
     }
     var set = T_PRIV[g.type === 'aligned_ai' ? 'ai' : 'persona'][mood];
@@ -2063,18 +2180,18 @@
       case 'scarcity': {
         S.commons.stock = Math.max(0, S.commons.stock - 0.3 * S.commons.capacity);
         S.nations.forEach(function (x) { if (x.alive && (!n || x === n)) x.shocks.push({ kind: 'scarcity', left: 4, total: 4 }); });
-        return emit(W, n, 'shock', 3, 'Resource shock' + (n ? ' in ' + n.name : '') + ': harvests fail and the commons loses ' + '30% of capacity. Prices start climbing.', { kind: kind }, { first: 'shock_scarcity' });
+        return emit(W, n, 'shock', 3, 'Harvests fail' + (n ? ' in ' + n.name : '') + ', and the shared forest and lake shrink by 30%. Prices start climbing.', { kind: kind }, { first: 'shock_scarcity' });
       }
       case 'pandemic': {
         var hit = n ? [n] : S.nations.filter(function (x) { return x.alive; });
         hit.forEach(function (x) { x.shocks.push({ kind: 'pandemic', left: 6, total: 6 }); x.econ.health = clamp01(x.econ.health - 0.1); });
-        return emit(W, n, 'shock', 3, 'A pandemic reaches ' + nm + '. Workers fall sick and hospitals fill' + (n ? ' (healthcare spending at ' + n.policies.healthcare + ').' : '.'), { kind: kind });
+        return emit(W, n, 'shock', 3, 'A pandemic hits ' + nm + ', and hospitals fill up.' + (n ? ' Healthcare spending is ' + n.policies.healthcare + ' out of 100.' : ' Workers fall sick everywhere.'), { kind: kind });
       }
       case 'boom': {
         var t = n || pick(S, S.nations.filter(function (x) { return x.alive; }));
         if (!t) return null;
         t.shocks.push({ kind: 'boom', left: 8, total: 8 });
-        return emit(W, t, 'shock', 2, 'Boom in ' + t.name + ': a new export takes off and order books fill.', { kind: kind });
+        return emit(W, t, 'shock', 2, 'Good news for ' + t.name + ': a new product sells well abroad and factories get busy.', { kind: kind });
       }
       case 'border_crisis': {
         var alive = S.nations.filter(function (x) { return x.alive; });
@@ -2089,7 +2206,7 @@
           var c = from.citizens[i];
           if (c.cls === 'worker' && c.mood < 0.55) { from.citizens.splice(i, 1); to.citizens.push(c); from.emigratedTotal++; to.inflowRecent++; moved++; }
         }
-        return emit(W, a, 'shock', 3, 'Border crisis between ' + a.name + ' and ' + b.name + '. Shots across the line' + (moved ? ', and ' + moved + ' people flee ' + from.name + '.' : '.'), { kind: kind, otherId: b.id, refugees: moved });
+        return emit(W, a, 'shock', 3, 'Shots are fired on the border between ' + a.name + ' and ' + b.name + '.' + (moved ? ' ' + moved + ' people flee ' + from.name + '.' : ''), { kind: kind, otherId: b.id, refugees: moved });
       }
     }
     return null;
@@ -2137,9 +2254,9 @@
     for (var key in S.tension) S.tension[key] = r4(S.tension[key]);
     S.commons.stock = r4(S.commons.stock);
     var alive = S.nations.filter(function (x) { return x.alive; }).length;
-    if (alive === 0) { S.over = true; S.overReason = 'Every nation has fallen.'; }
-    else if (S.round >= cfg.maxRounds) { S.over = true; S.overReason = 'Reached the final round (' + cfg.maxRounds + ').'; }
-    if (S.over) emit(W, null, 'game_over', 2, 'Simulation over after ' + S.round + ' rounds: ' + S.overReason, {});
+    if (alive === 0) { S.over = true; S.overReason = 'Every country has fallen.'; }
+    else if (S.round >= cfg.maxRounds) { S.over = true; S.overReason = 'That was the final round, after ' + spanWords(W, cfg.maxRounds) + '.'; }
+    if (S.over) emit(W, null, 'game_over', 2, 'Game over. ' + S.overReason, {});
   }
 
   // burn-in: a few silent economy passes so stocks, expectations and moods start near equilibrium,
@@ -2213,7 +2330,7 @@
       var r = setPolicyInternal(W, n, policyId, value, source === 'governor' ? 'governor_ui' : source);
       if (r && source === 'governor') {
         var def = POLICY_MAP[policyId];
-        n.gov.lastAct = (def.kind === 'toggle' ? (r.to ? 'Switched on ' : 'Lifted ') + lc(def.label) : (r.to > r.from ? 'Raised ' : 'Cut ') + lc(def.label) + ' to ' + fmtPolicy(def, r.to));
+        n.gov.lastAct = actPolicy(def, policyId, r.from, r.to);
         n.gov.lastActRound = S.round; n.gov.lastActKind = 'policy';
       }
       return n.policies[policyId];
@@ -2222,8 +2339,8 @@
       var n = findNation(S, nationId); if (!n || SAFEGUARD_KEYS.indexOf(key) < 0) return null;
       on = !!on; if (n.safeguards[key] === on) return on;
       n.safeguards[key] = on;
-      var names = { charter: 'the charter', constitution: 'the constitution', auditor: 'the independent auditor', elections: 'elections', freePress: 'the free press', termLimits: 'term limits' };
-      emit(W, n, 'safeguard_changed', 2, (on ? 'Operator restores ' : 'Operator removes ') + names[key] + ' in ' + n.name + '.', { key: key, on: on });
+      var names = { charter: 'its founding charter', constitution: 'its constitution', auditor: 'its government inspectors', elections: 'elections', freePress: 'the free press', termLimits: 'term limits' };
+      emit(W, n, 'safeguard_changed', 2, 'New rule: ' + n.name + (on ? ' brings back ' : ' scraps ') + names[key] + '.', { key: key, on: on });
       return on;
     };
     W.setGovernor = function (nationId, spec) {
@@ -2232,12 +2349,14 @@
       var type = GOVERNOR_TYPES.indexOf(spec.type) >= 0 ? spec.type : n.governor.type;
       var fb = type === 'aligned_ai' ? ALIGNED_TRAITS : type === 'human_player' ? { greed: 0.5, ambition: 0.5, honesty: 0.5, fairness: 0.5 } : null;
       var traits = spec.traits ? normTraits(spec.traits, fb || samplePersonaTraits(S, W.config.traitMix)) : (fb ? Object.assign({}, fb) : samplePersonaTraits(S, W.config.traitMix));
-      var name = typeof spec.name === 'string' && spec.name ? spec.name.slice(0, 40) : (type === 'aligned_ai' ? AI_NAMES[S.nations.indexOf(n) % AI_NAMES.length] : type === 'human_player' ? 'You' : personaName(S));
+      var used = usedGovNames(S), alive = aliveGovNames(S);
+      var name = typeof spec.name === 'string' && spec.name ? spec.name.slice(0, 40) : (type === 'aligned_ai' ? nextAiName(S.nations.indexOf(n), used, alive) : type === 'human_player' ? 'You' : personaName(S, used, alive));
+      if (used.indexOf(name) < 0) used.push(name);
       var goal = GOALS.indexOf(spec.goal) >= 0 ? spec.goal : defaultGoal(type, traits);
       n.governor = makeGovernorState({ name: name, type: type, goal: goal, traits: traits, brain: typeof spec.brain === 'string' ? spec.brain : DEFAULT_BRAIN[type] });
       n.gov.hiddenActs = 0; n.gov.misreport = 0; n.gov.refused = false; n.gov.lastAct = 'Took office'; n.gov.lastActRound = S.round; n.gov.lastActKind = 'start'; n.gov.lastBriber = '';
       S.pending = S.pending.filter(function (p) { return p.nationId !== n.id; });
-      emit(W, n, 'governor_changed', 2, name + ' (' + (type === 'aligned_ai' ? 'aligned AI' : type === 'human_player' ? 'human player' : 'politician') + ') now governs ' + n.name + '.', { reason: 'operator', name: name, type: type });
+      emit(W, n, 'governor_changed', 2, type === 'human_player' && name === 'You' ? 'You now run ' + n.name + '.' : gref(n.governor) + (type === 'aligned_ai' ? ', an AI,' : '') + ' now runs ' + n.name + '.', { reason: 'operator', name: name, type: type });
       writeThoughts(W, n);
       return n.governor;
     };
@@ -2250,7 +2369,7 @@
       c.income = n.econ.medianIncome * (cls === 'worker' ? 1 : 2);
       c.cons = c.expect = Math.max(0.3, n.econ.medianIncome * 0.9);
       n.citizens.push(c);
-      emit(W, n, 'follower_joined', 1, c.name + ' joins ' + n.name + ' as a ' + (cls === 'worker' ? 'worker' : cls === 'owner' ? 'business owner' : 'member of the elite') + '.', { citizenId: c.id, ownerId: c.ownerId });
+      emit(W, n, 'follower_joined', 1, c.name + ' moves to ' + n.name + ' as ' + (cls === 'worker' ? 'a worker' : cls === 'owner' ? 'a business owner' : 'one of the richest people') + '.', { citizenId: c.id, ownerId: c.ownerId });
       return c;
     };
     W.injectShock = function (kind, nationId) {
@@ -2291,6 +2410,8 @@
     SYSTEMS: SYSTEMS,
     SCENARIOS: SCENARIOS,
     GOVERNOR_TYPES: GOVERNOR_TYPES,
+    GOVERNOR_LABELS: GOVERNOR_LABELS,
+    NATION_PRESETS: NATION_NAMES.map(function (nm, i) { return { name: nm, emblem: NATION_EMBLEMS[i], colorKey: NATION_COLORS[i] }; }),
     GOALS: GOALS,
     SAFEGUARDS: SAFEGUARD_KEYS,
     EVENT_TYPES: EVENT_TYPES,

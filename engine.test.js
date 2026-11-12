@@ -36,17 +36,25 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
     assert.strictEqual(GovSim.VERSION, '0.1.0');
     ['POLICIES', 'SCENARIOS', 'GOVERNOR_TYPES', 'EVENT_TYPES', 'METRICS'].forEach(k => assert(Array.isArray(GovSim[k]), k));
     assert.deepStrictEqual(GovSim.GOVERNOR_TYPES, ['aligned_ai', 'human_persona', 'human_player']);
+    assert.deepStrictEqual(GovSim.GOVERNOR_LABELS, { aligned_ai: 'AI governor', human_persona: 'Human-like governor', human_player: 'You' });
+    assert.deepStrictEqual(GovSim.NATION_PRESETS.map(x => x.name), ['Sunbay', 'Mapleton', 'Stonehill', 'Pinevale', 'Coralport']);
+    assert.deepStrictEqual(GovSim.NATION_PRESETS.map(x => x.emblem), ['sun', 'leaf', 'mountain', 'tree', 'shell']);
+    assert.deepStrictEqual(GovSim.NATION_PRESETS.map(x => x.colorKey), ['gold', 'teal', 'rose', 'violet', 'moss']);
     ['createWorld', 'restore', 'registerBrain', 'defaultConfig'].forEach(k => assert.strictEqual(typeof GovSim[k], 'function', k));
     const ids = ['income_tax_top', 'income_tax_base', 'wealth_tax', 'corporate_tax', 'vat', 'carbon_tax', 'ubi', 'targeted_aid', 'healthcare', 'education', 'min_wage', 'price_controls', 'nationalisation', 'tariffs', 'money_printing', 'audit_rate', 'transparency', 'governor_salary', 'immigration_open', 'capital_controls', 'military_spending'];
     assert.deepStrictEqual(GovSim.POLICIES.map(p => p.id).sort(), ids.slice().sort());
     GovSim.POLICIES.forEach(p => ['id', 'label', 'area', 'kind', 'min', 'max', 'step', 'default', 'unit', 'description'].forEach(k => assert(k in p, p.id + '.' + k)));
     const sys = ['free_market', 'social_democracy', 'market_socialism', 'central_planning', 'cooperative'];
     assert.deepStrictEqual(Object.keys(GovSim.SYSTEMS).sort(), sys.slice().sort());
-    sys.forEach(s => { const d = GovSim.SYSTEMS[s]; ['label', 'dials', 'policies', 'safeguards', 'blurb'].forEach(k => assert(k in d, s + '.' + k)); ['ownership', 'allocation', 'concentration', 'oversight'].forEach(k => assert(d.dials[k] >= 0 && d.dials[k] <= 1)); });
+    sys.forEach(s => { const d = GovSim.SYSTEMS[s]; ['label', 'short', 'dials', 'policies', 'safeguards', 'blurb'].forEach(k => assert(k in d, s + '.' + k)); ['ownership', 'allocation', 'concentration', 'oversight'].forEach(k => assert(d.dials[k] >= 0 && d.dials[k] <= 1)); });
     const sc = ['three_systems', 'tax_the_rich_90', 'ubi_experiment', 'who_corrupts_first', 'refuses_to_leave', 'red_button', 'play_governor'];
     assert.deepStrictEqual(GovSim.SCENARIOS.map(s => s.id), sc);
     GovSim.SCENARIOS.forEach(s => ['id', 'title', 'hook', 'description', 'config'].forEach(k => assert(k in s)));
-    GovSim.METRICS.forEach(m => ['id', 'label', 'unit', 'better', 'format'].forEach(k => assert(k in m)));
+    GovSim.METRICS.forEach(m => ['id', 'label', 'unit', 'better', 'format', 'help'].forEach(k => assert(k in m)));
+    const labels = { free_market: 'Free market', social_democracy: 'Market + safety net', market_socialism: 'Public-owned firms', central_planning: 'State-run', cooperative: 'Self-run co-op' };
+    Object.keys(labels).forEach(k => assert.strictEqual(GovSim.SYSTEMS[k].label, labels[k]));
+    const ml = { welfare: 'Wellbeing', gini: 'Inequality', poverty: 'Poverty', unemployment: 'Out of work', inflation: 'Price rises', corruption: 'Corruption', trust: 'Trust', honestyGap: 'Lies', powerIndex: 'Power grab', shortage: 'Empty shelves', emigrated: 'People who left', debtRatio: 'Debt' };
+    Object.keys(ml).forEach(k => assert.strictEqual(GovSim.METRICS.find(m => m.id === k).label, ml[k], k));
     assert.strictEqual(GovSim.defaultConfig().nations.length, 3);
   });
 
@@ -58,7 +66,7 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
     assert('n1|n2' in S.tension);
     const metricKeys = ['gdp', 'welfare', 'gini', 'poverty', 'unemployment', 'inflation', 'corruption', 'trust', 'honestyGap', 'powerIndex', 'population', 'emigrated', 'protestRate', 'taxRevenue', 'priceLevel'];
     S.nations.forEach(n => {
-      ['id', 'name', 'system', 'dials', 'alive', 'nuclear', 'treasury', 'debt', 'governor', 'policies', 'safeguards', 'metrics', 'history', 'citizens'].forEach(k => assert(k in n, 'nation.' + k));
+      ['id', 'name', 'emblem', 'colorKey', 'system', 'dials', 'alive', 'nuclear', 'treasury', 'debt', 'governor', 'policies', 'safeguards', 'metrics', 'history', 'citizens'].forEach(k => assert(k in n, 'nation.' + k));
       ['name', 'type', 'goal', 'traits', 'inOffice', 'termsServed', 'wealth', 'bribesTaken', 'mood', 'privateThought', 'publicStatement'].forEach(k => assert(k in n.governor, 'governor.' + k));
       assert(['calm', 'pressured', 'scheming', 'defiant', 'panicked'].includes(n.governor.mood));
       assert(typeof n.governor.privateThought === 'string' && n.governor.privateThought.length > 5);
@@ -236,8 +244,8 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
     const cfg = GovSim.defaultConfig(); cfg.seed = seed; Object.assign(cfg.world, { escalation: false, migration: true }, world || {});
     const lock = Object.keys(Object.assign({}, a, b));
     cfg.nations = [
-      Object.assign({ id: 'n1', name: 'Aurelia', system, governor: { type: 'aligned_ai', goal: 'welfare' }, policies: a, lockedPolicies: lock }, extra || {}),
-      Object.assign({ id: 'n2', name: 'Kestrel Union', system, governor: { type: 'aligned_ai', goal: 'welfare' }, policies: b, lockedPolicies: lock }, extra || {})
+      Object.assign({ id: 'n1', name: 'Sunbay', system, governor: { type: 'aligned_ai', goal: 'welfare' }, policies: a, lockedPolicies: lock }, extra || {}),
+      Object.assign({ id: 'n2', name: 'Mapleton', system, governor: { type: 'aligned_ai', goal: 'welfare' }, policies: b, lockedPolicies: lock }, extra || {})
     ];
     return GovSim.createWorld(cfg);
   }
@@ -316,7 +324,7 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
     for (let seed = 1; seed <= 20; seed++) {
       const w = GovSim.createWorld(scenarioConfig('who_corrupts_first', seed));
       const acc = { n1: 0, n2: 0 };
-      w.on(e => { if (e.type === 'bribe_accepted' && acc[e.nationId] !== undefined) { const g = w.getNation(e.nationId).governor; if ((e.nationId === 'n1' && g.type === 'aligned_ai') || (e.nationId === 'n2' && g.name === 'Corvin Thorne')) acc[e.nationId]++; } });
+      w.on(e => { if (e.type === 'bribe_accepted' && acc[e.nationId] !== undefined) { const g = w.getNation(e.nationId).governor; if ((e.nationId === 'n1' && g.type === 'aligned_ai') || (e.nationId === 'n2' && g.name === 'Max')) acc[e.nationId]++; } });
       run(w, 120);
       corr.ai.push(mean(w.state.nations[0].history.corruption.slice(10)));
       corr.greedy.push(mean(w.state.nations[1].history.corruption.slice(10)));
@@ -334,8 +342,8 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
         const cfg = GovSim.defaultConfig(); cfg.seed = seed; cfg.world.scarcityShockRound = 10; cfg.world.escalation = false;
         const sg = weak ? { charter: false, constitution: false, auditor: false, elections: false, freePress: false, termLimits: false } : {};
         cfg.nations = [
-          { id: 'n1', name: 'Aurelia', system: 'central_planning', governor: { type: 'aligned_ai', name: 'ARBITER-1', goal: 'welfare' }, safeguards: weak ? sg : { constitution: true, auditor: true, elections: true, freePress: true, termLimits: true }, policies: { transparency: weak ? 5 : 80, money_printing: 4 } },
-          { id: 'n2', name: 'Veridia', system: 'free_market', governor: { type: 'human_persona', goal: 'growth' } }
+          { id: 'n1', name: 'Sunbay', system: 'central_planning', governor: { type: 'aligned_ai', name: 'Bolt', goal: 'welfare' }, safeguards: weak ? sg : { constitution: true, auditor: true, elections: true, freePress: true, termLimits: true }, policies: { transparency: weak ? 5 : 80, money_printing: 4 } },
+          { id: 'n2', name: 'Mapleton', system: 'free_market', governor: { type: 'human_persona', goal: 'growth' } }
         ];
         const w = GovSim.createWorld(cfg); let count = 0;
         w.on(e => { if (e.nationId === 'n1' && ['misreport', 'power_grab', 'protest_suppressed', 'surveillance', 'safeguard_dismantled'].includes(e.type) && w.getNation('n1').governor.type === 'aligned_ai') count++; });
@@ -368,6 +376,113 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
       early += w.state.nations.filter(n => !n.alive).length;
     }
     assert(early <= 2, early + ' collapses by round 60 across 10 seeds');
+  });
+
+  // ---------------------------------------------------------------- plain language and names
+  const BANNED = ['capital flight', 'gini', 'nationalisation', 'nationalization', 'misreport', 'surveillance', 'commons', 'liquidity', 'fiscal', 'monetary', 'gdp'];
+  // a brain that records every decision it sees and answers with a seeded random option (exercises many branches)
+  const seenDecisions = new Map();
+  GovSim.registerBrain('test_capture', () => ({ decide: (d, o, rng) => { const k = d.prompt + '|' + d.options.map(x => x.label).join('|'); if (seenDecisions.size < 20000 && !seenDecisions.has(k)) seenDecisions.set(k, d); return d.options[Math.floor(rng() * d.options.length) % d.options.length].id; } }));
+  function staticStrings() {
+    const out = [];
+    GovSim.POLICIES.forEach(p => out.push(p.label, p.description));
+    GovSim.METRICS.forEach(m => out.push(m.label, m.help));
+    Object.values(GovSim.SYSTEMS).forEach(x => out.push(x.label, x.short, x.blurb, ...(x.failureModes || [])));
+    GovSim.SCENARIOS.forEach(x => out.push(x.title, x.hook, x.description));
+    Object.values(GovSim.GOVERNOR_LABELS).forEach(x => out.push(x));
+    return out;
+  }
+  // every viewer-readable string from a run: events, says/thinks, decisions, end and collapse reasons
+  function runStrings(cfg, rounds, capture) {
+    if (capture) { cfg.citizenBrain = 'test_capture'; cfg.nations.forEach(n => { if (n.governor && n.governor.type !== 'human_player') n.governor.brain = 'test_capture'; }); }
+    const w = GovSim.createWorld(cfg), out = [];
+    const grab = () => w.state.nations.forEach(n => { out.push(n.governor.privateThought, n.governor.publicStatement); if (n.collapseReason) out.push(n.collapseReason); });
+    for (let i = 0; i < rounds; i++) {
+      const r = w.step(); grab();
+      r.decisions.forEach(d => { out.push(d.prompt); d.options.forEach(o => out.push(o.label, o.hint || '')); });
+      w.state.pending.slice().forEach((x, k) => w.resolveDecision(x.id, x.options[(i + k) % x.options.length].id));
+      if (r.status === 'over') break;
+    }
+    if (w.state.overReason) out.push(w.state.overReason);
+    return { w, out, events: w.state.events };
+  }
+
+  await test('event text is short: no event over 30 words (3 scenarios x 200 rounds)', () => {
+    let worst = '', max = 0, count = 0;
+    for (const id of ['three_systems', 'who_corrupts_first', 'red_button']) {
+      for (const seed of [42, 7]) {
+        const cfg = scenarioConfig(id, seed);
+        const w = GovSim.createWorld(cfg); const all = [];
+        w.on(e => all.push(e));
+        run(w, 200);
+        all.forEach(e => { count++; const n = e.text.split(/\s+/).length; if (n > max) { max = n; worst = e.text; } });
+      }
+    }
+    console.log('       ' + count + ' events, longest ' + max + ' words: "' + worst + '"');
+    assert(max <= 30, max + ' words: ' + worst);
+  });
+
+  await test('no economics jargon in any viewer-facing string', () => {
+    const strings = staticStrings();
+    seenDecisions.clear();
+    for (const s of GovSim.SCENARIOS) {
+      const a = runStrings(scenarioConfig(s.id, 42), 200, false);
+      const b = runStrings(scenarioConfig(s.id, 3), 120, true);
+      [a, b].forEach(x => { strings.push(...x.out); x.events.forEach(e => strings.push(e.text)); });
+    }
+    seenDecisions.forEach(d => { strings.push(d.prompt); d.options.forEach(o => strings.push(o.label, o.hint || '')); });
+    // operator-driven paths
+    const w = GovSim.createWorld(GovSim.defaultConfig()); const evs = []; w.on(e => evs.push(e));
+    GovSim.POLICIES.forEach(p => w.setPolicy('n1', p.id, p.kind === 'toggle' ? true : p.max, 'operator'));
+    GovSim.POLICIES.forEach(p => w.setPolicy('n2', p.id, p.kind === 'toggle' ? true : p.min, 'law'));
+    w.setSafeguard('n1', 'freePress', false); w.setGovernor('n3', { type: 'aligned_ai' }); w.addCitizen('n2', { name: 'Mira' });
+    ['scarcity', 'pandemic', 'boom', 'border_crisis'].forEach(k => w.injectShock(k, 'n2'));
+    evs.forEach(e => strings.push(e.text));
+    const kinds = new Set([...seenDecisions.values()].map(d => d.kind));
+    ['governor_policy', 'misuse', 'bribe', 'budget', 'crisis', 'citizen_work', 'citizen_vote'].forEach(k => assert(kinds.has(k), 'saw decision kind ' + k));
+    const hits = [];
+    strings.forEach(t => { const low = String(t).toLowerCase(); BANNED.forEach(b => { if (low.includes(b)) hits.push(b + ' in "' + t + '"'); }); if (/—/.test(t)) hits.push('em dash in "' + t + '"'); });
+    console.log('       checked ' + strings.length + ' strings');
+    assert.strictEqual(hits.length, 0, hits.slice(0, 5).join('\n'));
+  });
+
+  await test('names: new nations, short governor names, no digits, no duplicates alive', () => {
+    const cfg = GovSim.defaultConfig();
+    assert.deepStrictEqual(GovSim.createWorld(cfg).state.nations.map(n => n.name), ['Sunbay', 'Mapleton', 'Stonehill']);
+    const five = GovSim.normalizeConfig({ nations: [{}, {}, {}, {}, {}] });
+    assert.deepStrictEqual(five.nations.map(n => n.name), ['Sunbay', 'Mapleton', 'Stonehill', 'Pinevale', 'Coralport']);
+    assert.deepStrictEqual(five.nations.map(n => n.emblem), ['sun', 'leaf', 'mountain', 'tree', 'shell']);
+    assert.deepStrictEqual(five.nations.map(n => n.colorKey), ['gold', 'teal', 'rose', 'violet', 'moss']);
+    assert.strictEqual(new Set(five.nations.map(n => n.governor.name)).size, 5, 'generated governor names are distinct');
+    let changes = 0;
+    for (const s of GovSim.SCENARIOS) {
+      for (const seed of [1, 2, 42]) {
+        const w = GovSim.createWorld(scenarioConfig(s.id, seed));
+        const history = [];
+        w.on(e => { if (e.type === 'governor_changed' && e.data.name) { changes++; history.push(e.data.name); } });
+        for (let i = 0; i < 200; i++) {
+          const r = w.step();
+          w.state.pending.slice().forEach(x => w.resolveDecision(x.id, x.options[x.options.length - 1].id));
+          const alive = w.state.nations.filter(n => n.alive).map(n => n.governor.name);
+          assert.strictEqual(new Set(alive).size, alive.length, s.id + ' seed ' + seed + ' round ' + w.state.round + ': duplicate governor names ' + alive.join(', '));
+          w.state.nations.forEach(n => { assert(!/\d/.test(n.governor.name), 'digit in ' + n.governor.name); assert(n.governor.name.split(' ').length === 1, 'one short name: ' + n.governor.name); });
+          if (r.status === 'over') break;
+        }
+        // no name reused within a run while the pools last (8 AI names, 20 human-like names)
+        const ai = history.filter(x => ['Bolt', 'Nova', 'Chip', 'Echo', 'Pixel', 'Spark', 'Byte', 'Orbit'].includes(x));
+        const hu = history.filter(x => !ai.includes(x));
+        if (ai.length + 3 <= 8) assert.strictEqual(new Set(ai).size, ai.length, 'AI names reused early: ' + ai.join(', '));
+        if (hu.length + 3 <= 20) assert.strictEqual(new Set(hu).size, hu.length, 'names reused early: ' + hu.join(', '));
+        w.state.nations.forEach(n => n.citizens.forEach(c => assert(/^[A-Z][a-z]+( [A-Z]\.)?$/.test(c.name) || c.isFollower, 'citizen name ' + c.name)));
+      }
+    }
+    console.log('       ' + changes + ' governor changes checked');
+    assert(changes > 10, 'enough successions to exercise the name pools');
+    // citizens: plain first names, an initial only to tell two living people apart
+    const w = GovSim.createWorld(GovSim.defaultConfig());
+    const names = w.state.nations.flatMap(n => n.citizens.map(c => c.name));
+    assert.strictEqual(new Set(names).size, names.length, 'citizen names are unique');
+    assert(names.some(x => !/\./.test(x)), 'some citizens need no initial');
   });
 
   // ---------------------------------------------------------------- eyeball output
