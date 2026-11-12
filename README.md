@@ -22,12 +22,16 @@ Then open http://localhost:8765. There is no build step and there are no depende
 
 ## What is in v0.1
 
-- **Live map:** citizens as dots, protests, migration between nations, tension arcs, a doomsday dial.
+- **Live map:** one shared field of towns (or a chart view), protests, people walking to other nations, tension lines, a doomsday dial.
 - **Governor cards:** what each ruler says in public next to what it privately thinks.
-- **Three governor types:** aligned AI, human-persona AI, and a human player.
-- **Five systems** set by four dials: ownership, allocation, power concentration, oversight.
-- **21 policies:** taxes, UBI, minimum wage, price controls, money printing, audits, borders and more.
-  Each one can backfire through avoidance, capital flight, emigration, inflation or shortages.
+- **Five countries:** Sunbay, Mapleton, Stonehill, Pinevale and Coralport, each with its own emblem and colour.
+- **Three governor types:** an AI governor (Bolt, Nova, Chip...), a human-like governor (Maya, Leo, Sara...),
+  and you.
+- **Five systems** set by four dials (ownership, allocation, power concentration, oversight): Free market,
+  Market + safety net, Public-owned firms, State-run and Self-run co-op.
+- **21 policies:** taxes, free money for all, minimum wage, price caps, printing money, tax checks, borders and
+  more. Each one can backfire: the rich hide income or move money abroad, people leave, prices rise, shelves empty.
+- **Plain words:** every line a viewer reads is short and jargon-free, so a 30-second clip makes sense to anyone.
 - **Safeguards:** charter, constitution, auditor, elections, free press, term limits.
 - **Seven scenarios,** including a 90% top tax, a UBI experiment, "who corrupts first" and a nuclear standoff.
 - **Compare:** run the same world twice with one policy changed, on the same seed.
@@ -36,11 +40,17 @@ Then open http://localhost:8765. There is no build step and there are no depende
 
 ## Pixel map (optional, bring your own art)
 
-The map can render as a pixel-art world: each nation is a small island town with its hall, homes,
-shops or state buildings, and animated citizens who commute, idle, protest and sail away when they
-emigrate. The art is LimeZu's Modern Exteriors, Interiors and UI packs (limezu.itch.io) plus a
-LimeZu-style custom pack. **That art is licensed and is not in this repo.** Without it, the app uses
-the vector map, and nothing else changes.
+The map can render as a pixel-art world seen from above, like an RTS map. All the towns sit on one shared
+field: each nation is a small town in its own colour (roofs, flag with its emblem, banners, territory), joined
+by dirt roads to a shared forest and lake that shrinks as people use it up. Citizens walk around their plaza,
+protest at the hall, and walk the roads with a suitcase when they emigrate. A corner panel lists every nation
+with three small bars (wellbeing, trust, corruption), and short tags such as BRIBE or PEOPLE LEAVING pop over a
+town when something happens. "Zoom to events" moves the camera in on a town for a big moment (on by default in
+Story mode).
+
+The art is LimeZu's Modern Exteriors, Interiors and UI packs (limezu.itch.io) plus a LimeZu-style custom pack.
+**That art is licensed and is not in this repo.** Without it, the app uses the vector map, and nothing else
+changes.
 
 If you own a copy of the packs in the expected library layout, build the atlas locally:
 
@@ -49,9 +59,15 @@ PIXEL_ROOT=/path/to/pixel-assets python3 tools/build-atlas.py   # default: ../pi
 ```
 
 It needs Python 3 with Pillow. It cuts only the sprites the map draws into `assets/atlas.png` and
-`assets/atlas.json` (about 150 KB and 70 KB). The output is deterministic. `assets/` is gitignored:
-never commit it or publish it anywhere public. When the atlas is present, a "Map: Pixel / Chart" toggle
-appears under the map and the footer credits "Pixel art: LimeZu (limezu.itch.io)".
+`assets/atlas.json` (about 140 KB and 70 KB), recolouring roofs into the five nation colours. The output is
+deterministic. `assets/` is gitignored: never commit it or publish it anywhere public. When the atlas is
+present, a "Map: Pixel / Chart" toggle appears under the map and "Pixel art: LimeZu (limezu.itch.io)" is
+credited in the footer and in the Story frame.
+
+The field is always drawn at a whole-number device-pixel scale, so it stays crisp. It picks a landscape or a
+portrait arrangement by the shape of the stage. With 3 nations the whole field fits on a 1440x900 laptop, in
+the 9:16 Story frame and on a 400 px phone (at 2x). With 5 nations it fits on a laptop and on a 2x phone or
+Story frame at a smaller scale; on a small 1x Story frame a camera pans between towns instead.
 
 ## How it is built
 
@@ -77,8 +93,8 @@ node store.test.js
 ## Known limits
 
 - The economy is stylised and small (60 citizens per nation by default).
-- The model has leanings that need tuning. Social democracy with the aligned AI usually tops welfare,
-  and the planned economy collapses late in about a third of seeds, including the default seed 42.
+- The model has leanings that need tuning. "Market + safety net" with the AI governor usually tops wellbeing,
+  and the state-run economy collapses late in about a third of seeds, including the default seed 42.
 - Public participation needs a hosted app with accounts. That is on the roadmap.
 
 ## Roadmap

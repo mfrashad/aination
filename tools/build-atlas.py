@@ -116,47 +116,96 @@ def single(name, rel, anchor='bottom', meta=None, src=None, do_trim=True):
     add(name, im, a, meta, src or rel)
 
 
+# Nation colours: the map's own vivid versions of the five cartographic tints (ochre, teal, rose,
+# slate-violet, moss). Roofs are recoloured to these at build time; pixelmap.js uses the same values.
+NATION_HSV = {
+    'gold': (40, 0.70, 0.90), 'teal': (174, 0.70, 0.68), 'rose': (345, 0.55, 0.86),
+    'violet': (256, 0.46, 0.82), 'moss': (90, 0.60, 0.70), 'grey': (215, 0.08, 0.62),
+}
+
+
+def recolour(im, key, test, flat=False):
+    """Map the pixels that pass `test` (a red roof ramp) onto a nation colour, keeping their shading.
+    flat=True is for pale, low-saturation roofs: they take the full nation saturation."""
+    import colorsys
+    th, ts, tv = NATION_HSV[key]
+    out = im.copy()
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            if not a:
+                continue
+            h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+            if not test(h * 360, s, v):
+                continue
+            ns = min(1, ts * (0.85 if flat else s / 0.78))
+            nv = min(1, tv * (v / 0.80 if flat else v / 0.82))
+            rr, gg, bb = colorsys.hsv_to_rgb(th / 360, ns, nv)
+            px[x, y] = (round(rr * 255), round(gg * 255), round(bb * 255), a)
+    return out
+
+
+def is_red(h, s, v):
+    return (h < 16 or h > 340) and s > 0.42 and v > 0.45
+
+
+def is_brick(h, s, v):
+    return (h < 30 or h > 340) and s > 0.25
+
+
 def terrain():
     tf = SORT + '1_Terrains_and_Fences_16x16.png'
     # Autotile blocks: a 3x3 rounded rect (outer corners + edges + fill) and a 2x2 inner-corner block.
     add('ter.dirt', crop(tf, 0, 480, 80, 48), src='ext/terrains-and-fences dirt path on grass (autotile)')
     add('ter.pond', crop(tf, 0, 560, 80, 48), src='ext/terrains-and-fences pond in grass (autotile)')
-    # Island: grass plateau with a dirt cliff skirt (9-slice: 3 columns, rows top/mid/bottom-3).
+    # Plateau: grass with a dirt cliff skirt (9-slice: 3 columns, rows top/mid/bottom-3).
     add('ter.island', crop(tf, 128, 672, 48, 80), src='ext/terrains-and-fences grass cliff plateau')
     add('ter.herring', crop(tf, 432, 144, 32, 32), src='ext/terrains-and-fences herringbone paving')
-    add('ter.water', crop(tf, 464, 80, 16, 16), src='ext/terrains-and-fences water ripple')
 
 
 def gov_hall():
-    """A small brick civic hall composed from LimeZu's modular Generic Building pieces."""
+    """Compact civic hall (80 x 96) and a grey state block, composed from LimeZu's modular Generic Building
+    pieces: an arched door or a window bay between two pillars, under a strip of flat roof."""
     gb = SORT + '4_Generic_Buildings_16x16.png'
-    left = (80, 112)    # bay corner section incl. the brick strip (7 tiles)
-    door = (288, 80)    # arched door section with right pillar (5 tiles)
-    rows = [(800, 16), (880, 32), (1184, 80)]   # roof top edge, roof bottom with bay notch, 1-floor facade
-    W = left[1] + door[1]
-    H = sum(h for _, h in rows)
-    out = Image.new('RGBA', (W, H))
-    y = 0
-    for (sy, sh) in rows:
-        out.alpha_composite(crop(gb, left[0], sy, left[1], sh), (0, y))
-        out.alpha_composite(crop(gb, door[0], sy, door[1], sh), (left[1], y))
-        y += sh
-    # door: centre of the arch in the door section, at the bottom step
-    add('bld.hall', out, [W // 2, H], {'door': [left[1] + 25, H - 2], 'w': W, 'h': H},
-        'ext/generic-building modular brick pieces (composed)')
+    pil = crop(gb, 352, 880, 16, 32), crop(gb, 352, 1184, 16, 64)
+
+    def compose(mid_x, mid_w):
+        W = 16 + mid_w + 16
+        out = Image.new('RGBA', (W, 96))
+        for (sy, sh), pc in zip(((880, 32), (1184, 64)), pil):
+            y = 0 if sy == 880 else 32
+            out.alpha_composite(pc.transpose(Image.FLIP_LEFT_RIGHT), (0, y))
+            out.alpha_composite(crop(gb, mid_x, sy, mid_w, sh), (16, y))
+            out.alpha_composite(pc, (16 + mid_w, y))
+        return out
+    hall = compose(288, 48)
+    block = recolour(compose(208, 48), 'grey', is_brick)
+    # the flat roof (top rows) takes the nation colour, so every town reads by colour from above
+    def roof(im, key):
+        top = im.crop((0, 0, im.width, 30))
+        top = recolour(top, key, lambda h, s, v: 20 <= h <= 55 and 0.12 <= s <= 0.5 and v > 0.55, flat=True)
+        out = im.copy()
+        out.paste(top, (0, 0))
+        return out
+    for key in NATION_HSV:
+        add('bld.hall.' + key, roof(hall, key), [40, 96], {'door': [40, 94]})
+        add('bld.block.' + key, roof(block, key), [40, 96], {'door': [40, 94]})
+    SOURCES.append('bld.hall.* <- ext/generic-building modular pieces (composed civic hall, roof recoloured per nation)')
+    SOURCES.append('bld.block.* <- ext/generic-building modular pieces (composed, greyed state block, roof recoloured per nation)')
 
 
 def buildings():
     S = SORT
-    single('bld.home1', S + '7_Villas_Singles_16x16/ME_Singles_Villas_16x16_Toy_House_1.png', meta={'door': [42, 78]}, src='ext/villas/1-8')
-    single('bld.home3', S + '7_Villas_Singles_16x16/ME_Singles_Villas_16x16_Toy_House_3.png', meta={'door': [42, 78]}, src='ext/villas/3-4')
-    single('bld.home5', S + '7_Villas_Singles_16x16/ME_Singles_Villas_16x16_Toy_House_5.png', meta={'door': [42, 78]}, src='ext/villas/5-4')
-    single('bld.home7', S + '7_Villas_Singles_16x16/ME_Singles_Villas_16x16_Toy_House_7.png', meta={'door': [42, 78]}, src='ext/villas/7-3')
-    single('bld.power', S + '3_City_Props_Singles_16x16/ME_Singles_City_Props_16x16_Power_House_1.png', src='ext/city-props/1-51')
-    single('bld.cabin', S + '11_Camping_Singles_16x16/ME_Singles_Camping_16x16_Mobile_House_Small_1.png', src='ext/camping/1-27')
-    single('bld.booth', S + '3_City_Props_Singles_16x16/ME_Singles_City_Props_16x16_Orange_Structure.png', src='ext/city-props/me-city-props-orange-structure')
-    single('bld.dorm', CUSTOM + 'compound/dorm-block-small.png', src='my/compound/dorm-block-small (custom pack)')
-    single('bld.shop', CUSTOM + 'my-street/kedai-runcit-front.png', src='my/my-street/kedai-runcit-front (custom pack)')
+    villa = S + '7_Villas_Singles_16x16/ME_Singles_Villas_16x16_Toy_House_%d.png'
+    # Two neutral-walled cottages, roofs recoloured per nation (and grey for fallen towns)
+    for var, num in (('a', 5), ('b', 7)):
+        base, _ = trim(img(villa % num))
+        for key in NATION_HSV:
+            add('bld.house.%s.%s' % (key, var), recolour(base, key, is_red), [base.width // 2, base.height],
+                {'door': [42, 74]})
+        SOURCES.append('bld.house.*.%s <- ext/villas/%d (Toy_House_%d, roof recoloured per nation)' % (var, num, num))
+    single('bld.depot', S + '6_Garage_Sales_Singles_16x16/ME_Singles_Garage_Sales_16x16_Building_2_Door_1.png', src='ext/garage-sales/1-7')
     single('bld.stall1', CUSTOM + 'kopitiam/hawker-stall-noodle.png', src='my/kopitiam/hawker-stall-noodle (custom pack)')
     single('bld.stall2', CUSTOM + 'kopitiam/hawker-stall-drinks.png', src='my/kopitiam/hawker-stall-drinks (custom pack)')
     single('bld.stall3', CUSTOM + 'kopitiam/hawker-stall-wok.png', src='my/kopitiam/hawker-stall-wok (custom pack)')
@@ -165,7 +214,7 @@ def buildings():
 
 
 def props():
-    cat =json.load(open(ROOT / 'index/catalog.json'))
+    cat = json.load(open(ROOT / 'index/catalog.json'))
     byid = {e['id']: e for e in cat}
 
     def lib(name, cid, **kw):
@@ -174,43 +223,35 @@ def props():
             sys.exit('build-atlas: library id %s has no 16 px file' % cid)
         single(name, 'limezu/' + e['f16'] if not e['f16'].startswith('../') else e['f16'][3:], src=cid, **kw)
 
+    # trees for the shared forest and the open field; dead trees and stumps for a stripped forest
     lib('prop.tree1', 'ext/camping/1-51')
     lib('prop.tree2', 'ext/camping/2-49')
     lib('prop.tree3', 'ext/camping/9-6')
-    lib('prop.tree4', 'ext/camping/5-23')
-    lib('prop.bush', 'ext/camping/121')
+    lib('prop.treeS', 'ext/camping/170')
+    lib('prop.treeR', 'ext/camping/145')
+    lib('prop.pine', 'ext/camping/182')
+    lib('prop.fruit', 'ext/camping/254')
+    lib('prop.dead', 'ext/camping/1-52')
+    lib('prop.stump', 'ext/camping/1-46')
+    lib('prop.stumpS', 'ext/villas/3-14')
     lib('prop.shrub', 'ext/garden/20')
     lib('prop.fbush', 'ext/city-props/7-9')
     lib('prop.flowers1', 'ext/city-props/1-25')
     lib('prop.flowers2', 'ext/city-props/3-18')
-    lib('prop.stump', 'ext/camping/1-46')
-    lib('prop.lamp', 'ext/city-props/5-25')
-    lib('prop.planter', 'ext/city-props/1-24')
     lib('prop.litter', 'ext/city-props/1-44')
     lib('prop.atm', 'ext/city-props/1')
-    lib('prop.statue', 'ext/garden/1-97')
     lib('prop.bench', 'ext/subway-and-train-station/1-63')
-    lib('prop.jetty', 'my/border/jetty-plank')
-    lib('prop.jettyend', 'my/border/jetty-end')
-    lib('prop.topiary', 'ext/garden/1-6')
-    # AI governor terminal: animated server rack (Modern Interiors, 16 px gif)
-    fr, durs = gif_frames('limezu/interiors/3_Animated_objects/16x16/gif/animated_control_room_server.gif')
-    names = []
-    for i, f in enumerate(fr):
-        nm = 'prop.server#%d' % i
-        add(nm, f, [8, f.height])
-        names.append(nm)
-    ANIMS['prop.server'] = {'frames': names, 'fps': round(1000 / (sum(durs) / len(durs)), 2)}
-    SOURCES.append('prop.server <- int/gif/animated-control-room-server')
+    lib('prop.stand', 'ext/villas/1-3')
+    lib('prop.crate', 'ext/camping/1-35')
+    lib('prop.crates', 'ext/villas/1-4')
+    lib('prop.barrier', 'ext/city-props/1-16')
+    lib('prop.railing', 'ext/beach/1-72')
+    lib('prop.sandbag', 'ext/military-base/military-base-sandbag-horizontal')
 
 
 def animated():
-    add_strip('fx.fountain', ANIM + 'Fountain_16x16.png', 32, 48, 8, 8, anchor=[16, 48])
-    add_strip('fx.pigeon', ANIM + 'Pigeon_16x16.png', 16, 16, 6, 6, anchor=[8, 15])
     add_strip('fx.boom', ANIM + 'Landmine_Explosion_vfx_16x16.png', 48, 48, 11, 12, anchor=[24, 40])
     add_strip('fx.fire', ANIM + 'Campfire_16x16.png', 16, 32, 6, 10, anchor=[8, 31])
-    add_strip('fx.boatR', ANIM + 'Boat_1_right_1_16x16.png', 64, 32, 8, 8, anchor=[32, 22])
-    add_strip('fx.boatL', ANIM + 'Boat_1_left_1_16x16.png', 64, 32, 8, 8, anchor=[32, 22])
 
 
 def emotes():
@@ -239,7 +280,7 @@ CHARS = [
     ('w5', ('premade', 15)), ('w6', ('cast', 'mak')), ('w7', ('cast', 'worker')),
     ('o1', ('premade', 8)), ('o2', ('premade', 10)), ('o3', ('premade', 14)),
     ('e1', ('cast', 'lay-manager')), ('e2', ('premade', 19)),
-    ('gai', ('cast', 'helperbot')), ('gper', ('cast', 'hr-bot')), ('gyou', ('premade', 12)),
+    ('gai', ('cast', 'helperbot')), ('gper', ('cast', 'lay-daniel')), ('gyou', ('premade', 12)),
 ]
 DIRS = ['right', 'up', 'left', 'down']
 
@@ -320,6 +361,7 @@ def main():
         'anims': ANIMS,
         'meta': META,
         'chars': {k: {'src': (v[0] + ':' + str(v[1]))} for k, v in CHARS},
+        'nationHsv': NATION_HSV,
     }
     with open(OUT / 'atlas.json', 'w') as f:
         json.dump(data, f, sort_keys=True, separators=(',', ':'))

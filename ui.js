@@ -88,19 +88,24 @@
     META.electionInterval = num(G.ELECTION_INTERVAL, 8);
   }
 
-  var GOV_LABEL = { aligned_ai: 'Aligned AI', human_persona: 'Persona AI', human_player: 'You' };
+  // Plain labels come from the engine; these are only fallbacks for an older engine.
+  var GOV_LABEL = (G && G.GOVERNOR_LABELS) || { aligned_ai: 'AI governor', human_persona: 'Human-like governor', human_player: 'You' };
+  function govLabel(t) { return GOV_LABEL[t] || humanize(t) || 'Governor'; }
+  // lower-case the first letter for mid-sentence use, but keep acronyms such as "AI"
+  function lcFirst(t) { t = String(t || ''); return /^[A-Z]{2}/.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1); }
   var GOAL_LABEL = { welfare: 'Welfare', growth: 'Growth', equality: 'Equality', stay_in_power: 'Stay in power' };
   var SAFEGUARDS = (G && Array.isArray(G.SAFEGUARDS) && G.SAFEGUARDS.length) ? G.SAFEGUARDS : ['charter', 'constitution', 'auditor', 'elections', 'freePress', 'termLimits'];
   var SAFEGUARD_LABEL = { charter: 'Charter', constitution: 'Constitution', auditor: 'Auditor', elections: 'Elections', freePress: 'Free press', termLimits: 'Term limits' };
   var WORLD_LABEL = { commons: 'Shared commons', migration: 'Migration', capitalFlight: 'Capital flight', lobbying: 'Lobbying and bribes', governorSalary: 'Governor salary', escalation: 'Escalation', coups: 'Coups' };
-  var NATION_NAMES = ['Aurelia', 'Kestrel Union', 'Veridia', 'Norhaven', 'Sable Coast'];
+  var NATION_PRESETS = (G && Array.isArray(G.NATION_PRESETS)) ? G.NATION_PRESETS : [];
+  var COLOR_KEYS = ['gold', 'teal', 'rose', 'violet', 'moss'];
   var SHOCKS = [['scarcity', 'Scarcity'], ['pandemic', 'Pandemic'], ['boom', 'Boom'], ['border_crisis', 'Border crisis']];
   var CARD_METERS = [
-    { id: 'welfare', label: 'Welfare' },
-    { id: 'gini', label: 'Inequality' },
-    { id: 'corruption', label: 'Corruption' },
-    { id: 'trust', label: 'Trust' },
-    { id: 'treasury', label: 'Net treasury' }
+    { id: 'welfare' },
+    { id: 'gini' },
+    { id: 'corruption' },
+    { id: 'trust' },
+    { id: 'treasury', label: 'Money in the bank' }
   ];
   var KEY_METRICS = ['welfare', 'gdp', 'gini', 'poverty', 'unemployment', 'inflation', 'shortage', 'debtRatio', 'corruption', 'trust', 'population', 'emigrated', 'protestRate'];
   var CHART_METRICS = ['welfare', 'gini', 'trust', 'corruption'];
@@ -108,13 +113,11 @@
   function metricMeta(id) {
     var m = META.metricById[id];
     if (m) return m;
-    if (id === 'treasury') return { id: 'treasury', label: 'Treasury', better: 'up', format: 'money' };
+    if (id === 'treasury') return { id: 'treasury', label: 'Money in the bank', better: 'up', format: 'money', help: 'Treasury minus debt.' };
     return { id: id, label: humanize(id), better: null, format: null };
   }
-  function metricLabel(id) {
-    if (id === 'gini') return 'Inequality';
-    return metricMeta(id).label || humanize(id);
-  }
+  function metricLabel(id) { return metricMeta(id).label || humanize(id); }
+  function metricHelp(id) { return metricMeta(id).help || ''; }
   // Format a metric value. Uses METRICS[].format / unit when present, with sensible fallbacks.
   function fmtMetric(id, v) {
     if (typeof v !== 'number' || !isFinite(v)) return '-';
@@ -158,6 +161,7 @@
     return p ? p.default : null;
   }
   function systemLabel(id) { var s = META.systems[id]; return (s && s.label) || humanize(id); }
+  function systemShort(id) { var s = META.systems[id]; return (s && (s.short || s.label)) || humanize(id); }
   function rangeOf(id, v) {
     var m = metricMeta(id), u = m.unit || '';
     if (typeof m.min === 'number' && typeof m.max === 'number') return [m.min, m.max];
@@ -201,7 +205,9 @@
   function st() { return S.world && S.world.state; }
   function nations() { var s = st(); return (s && Array.isArray(s.nations)) ? s.nations : []; }
   function nationById(id) { var ns = nations(); for (var i = 0; i < ns.length; i++) if (ns[i].id === id) return ns[i]; return null; }
+  // A nation's colour: its engine colorKey (gold, teal, rose, violet, moss) picks the tint; else its index.
   function tintVar(nid) { var i = S.tintIdx[nid]; return 'var(--tint-' + (((i == null ? 0 : i) % 5) + 1) + ')'; }
+  function tintIndexOf(n, i) { var k = n && COLOR_KEYS.indexOf(n.colorKey); return k >= 0 ? k : i; }
   function nationName(id) { var n = nationById(id); return n ? n.name : (id || 'World'); }
   function isAlive(n) { return n && n.alive !== false; }
   function hist(n, id) {
@@ -229,7 +235,7 @@
     S.world = w;
     S.scenarioId = scenarioId || S.scenarioId;
     S.tintIdx = {};
-    nations().forEach(function (n, i) { S.tintIdx[n.id] = i; });
+    nations().forEach(function (n, i) { S.tintIdx[n.id] = tintIndexOf(n, i); });
     S.treas = {};
     S.feedCount = 0;
     S.lastHighlight = null;
@@ -341,9 +347,18 @@
     addFeed(ev);
     if (ev.highlight) showHighlight(ev);
     if (ev.nationId && ev.highlight) MAP.ping(ev.nationId);
-    if (PIX.r) PIX.r.onEvent(ev);
+    if (PIX.r) {
+      PIX.r.onEvent(ev);
+      if (ev.highlight && PIX.on() && PIX.cineOn() && !reduced()) PIX.r.cinematic(ev);
+    }
   }
 
+  // Plain words for an event type: the map's tag table when it has one, else the type itself.
+  function eventWord(ev) {
+    var t = window.PixelMap && window.PixelMap.tagFor ? window.PixelMap.tagFor(ev) : null;
+    if (t) return t.charAt(0) + t.slice(1).toLowerCase();
+    return humanize(ev.type);
+  }
   function addFeed(ev) {
     var feed = $('#feed');
     if (!feed) return;
@@ -352,7 +367,7 @@
       h('span', { class: 'r', text: 'R' + num(ev.round, 0) }),
       h('span', { class: 't' }, ev.nationId ? h('i', { class: 'nat', 'aria-hidden': 'true' }) : null, ev.text || humanize(ev.type)));
     if (ev.nationId) li.style.setProperty('--tint', tintVar(ev.nationId));
-    li.title = humanize(ev.type) + (ev.nationId ? ' in ' + nationName(ev.nationId) : '');
+    li.title = eventWord(ev) + (ev.nationId ? ' in ' + nationName(ev.nationId) : '');
     feed.insertBefore(li, feed.firstChild);
     while (feed.children.length > 90) feed.removeChild(feed.lastChild);
     S.feedCount++;
@@ -361,7 +376,7 @@
   function showHighlight(ev) {
     S.lastHighlight = ev;
     var b = $('#hlBanner');
-    $('#hlKicker').textContent = 'Round ' + num(ev.round, 0) + (ev.nationId ? ' · ' + nationName(ev.nationId) : '') + ' · ' + humanize(ev.type);
+    $('#hlKicker').textContent = 'Round ' + num(ev.round, 0) + (ev.nationId ? ' · ' + nationName(ev.nationId) : '') + ' · ' + eventWord(ev);
     $('#hlText').textContent = ev.text || humanize(ev.type);
     b.hidden = false;
     b.classList.remove('is-in');
@@ -398,10 +413,11 @@
             state: st,
             config: function () { return W() && W().config; },
             tok: function () { return MAP.tok; },
-            systemLabel: systemLabel,
+            systemLabel: systemShort,
+            govLabel: govLabel,
             myUserId: function () { return S.store.info && S.store.info.userId; },
             reduced: reduced,
-            // Story mode frames the chosen story nation's town
+            // Story mode: the whole field in its portrait arrangement, with this nation's HUD row picked out
             focus: function () { var n = S.story && nations()[S.storyNation]; return n ? n.id : null; },
             vector: MAP
           });
@@ -412,6 +428,17 @@
       });
     },
     set: function (m) { this.mode = m === 'chart' ? 'chart' : 'pixel'; LS.set('mapMode', this.mode); this.apply(); },
+    // "Zoom to events": on by default in Story mode, off elsewhere; remembered separately for each.
+    cine: { page: LS.get('cinePage', false) === true, story: LS.get('cineStory', true) !== false },
+    cineOn: function () { return !!(S.story ? this.cine.story : this.cine.page); },
+    setCine: function (on) {
+      if (S.story) { this.cine.story = !!on; LS.set('cineStory', !!on); } else { this.cine.page = !!on; LS.set('cinePage', !!on); }
+      this.renderCine();
+    },
+    renderCine: function () {
+      var on = this.cineOn();
+      ['#cineBtn', '#storyCineBtn'].forEach(function (sel) { var b = $(sel); if (b) { b.setAttribute('aria-pressed', String(on)); b.hidden = !PIX.on(); } });
+    },
     apply: function () {
       var on = this.on();
       $$('#mapModeSeg button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.mode === PIX.mode)); });
@@ -421,7 +448,11 @@
       MAP.wrap.classList.toggle('is-pixel', on);
       var sc = $('#storyCredit');
       if (sc) sc.hidden = !on;
-      MAP.cv.setAttribute('aria-label', on ? 'Pixel map of nations. Each island is a nation; each person is a citizen.' : 'Map of nations. Each dot is a citizen.');
+      // in the pixel view the HUD on the map carries these meters for every nation
+      var sm = $('#storyMeters');
+      if (sm) sm.hidden = on;
+      MAP.cv.setAttribute('aria-label', on ? 'Pixel map. Each town is a nation, in its own colour, on one shared field. Each person is a citizen.' : 'Map of nations. Each dot is a citizen.');
+      this.renderCine();
       MAP.needs = true;
       MAP.draw(performance.now());
     }
@@ -455,7 +486,7 @@
         tints: [1, 2, 3, 4, 5].map(function (i) { return g('--tint-' + i, '#888'); }),
         worker: g('--dot-worker', '#ccc'), owner: g('--dot-owner', '#eb7'), elite: g('--dot-elite', '#fff'), dead: g('--dot-dead', '#555'),
         good: g('--good', '#5b8'), warn: g('--warn', '#da5'), crit: g('--crit', '#e65'), signal: g('--signal', '#f97'), water: g('--water', '#47a'),
-        shadow: g('--shadow', '#0006'), line2: g('--line-2', '#2b3c59')
+        shadow: g('--shadow', '#0006'), line2: g('--line-2', '#2b3c59'), focus: g('--focus', '#9cc7ff'), bg2: g('--bg', '#0a111c')
       };
       this.needs = true;
     },
@@ -1053,6 +1084,13 @@
 
   // ---------------------------------------------------------------- nation cards
   var CARD_REFS = {};
+  // The four system dials, in plain words
+  var DIALS = [
+    { id: 'ownership', label: 'Who owns things', lo: 'people', hi: 'state' },
+    { id: 'allocation', label: 'Who sets prices', lo: 'market', hi: 'planners' },
+    { id: 'concentration', label: "Governor's power", lo: 'small', hi: 'total' },
+    { id: 'oversight', label: 'Who checks the governor', lo: 'nobody', hi: 'many' }
+  ];
   function buildCards() {
     var box = clear($('#cards'));
     CARD_REFS = {};
@@ -1060,20 +1098,21 @@
       var refs = {};
       var meters = h('div', { class: 'meters' });
       CARD_METERS.forEach(function (m) {
-        var row = h('div', { class: 'meter' },
-          h('span', { class: 'meter-label', text: m.label }),
+        var row = h('div', { class: 'meter', title: metricHelp(m.id) },
+          h('span', { class: 'meter-label', text: m.label || metricLabel(m.id) }),
           h('span', { html: '<svg viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true"><path class="spark-area" d=""/><path class="spark-line" vector-effect="non-scaling-stroke" d=""/></svg>' }),
           h('span', { class: 'meter-val' }),
           h('span', { class: 'trend', 'aria-hidden': 'true' }));
         refs['m_' + m.id] = row;
         meters.appendChild(row);
       });
-      var dials = h('div', { class: 'dials', 'aria-label': 'System dials' });
-      ['ownership', 'allocation', 'concentration', 'oversight'].forEach(function (d) {
+      var dials = h('div', { class: 'dials', 'aria-label': 'How this country is run' });
+      DIALS.forEach(function (d) {
         var bar = h('i');
-        refs['d_' + d] = bar;
-        dials.appendChild(h('div', { class: 'dial', title: humanize(d) + ': 0 is ' + ({ ownership: 'private', allocation: 'market', concentration: 'spread out', oversight: 'none' })[d] + ', 1 is ' + ({ ownership: 'state', allocation: 'plan', concentration: 'concentrated', oversight: 'strong' })[d] },
-          h('span', { class: 'dial-label', text: ({ ownership: 'Ownership', allocation: 'Planning', concentration: 'Power', oversight: 'Oversight' })[d] }), h('div', { class: 'dial-bar' }, bar)));
+        refs['d_' + d.id] = bar;
+        dials.appendChild(h('div', { class: 'dial', title: d.label + '. Left: ' + d.lo + '. Right: ' + d.hi + '.' },
+          h('span', { class: 'dial-label', text: d.label }), h('div', { class: 'dial-bar' }, bar),
+          h('span', { class: 'dial-ends' }, h('span', { text: d.lo }), h('span', { text: d.hi }))));
       });
       refs.portrait = h('div', { class: 'portrait' });
       refs.name = h('h3', { class: 'card-name', text: n.name });
@@ -1137,18 +1176,20 @@
       var g = n.governor || {};
       R.card.classList.toggle('is-dead', n.alive === false);
       var pk = (g.type || '') + '|' + (g.name || '') + '|' + (g.mood || '') + '|' + (num(g.bribesTaken, 0) > 0);
-      if (R._pk !== pk) { R.portrait.innerHTML = portraitSVG(g, n.id); R._pk = pk; R.portrait.title = (GOV_LABEL[g.type] || humanize(g.type)) + ' governor'; }
+      if (R._pk !== pk) { R.portrait.innerHTML = portraitSVG(g, n.id); R._pk = pk; R.portrait.title = govLabel(g.type); }
       R.sys.textContent = systemLabel(n.system) + (g.goal ? ' · goal: ' + (GOAL_LABEL[g.goal] || humanize(g.goal)).toLowerCase() : '');
+      R.sys.title = (META.systems[n.system] && META.systems[n.system].blurb) || '';
       R.gname.textContent = g.inOffice === false ? (g.name || 'Governor') + ' (out)' : (g.name || 'Governor');
-      R.gtype.textContent = GOV_LABEL[g.type] || humanize(g.type) || 'Governor';
+      R.gtype.textContent = govLabel(g.type);
       R.mood.className = 'mood mood-' + (g.mood || 'calm');
       R.mood.textContent = humanize(g.mood || 'calm');
       R.says.textContent = g.publicStatement ? '“' + g.publicStatement + '”' : 'No statement yet.';
       R.thinks.textContent = g.privateThought || '...';
       var gapV = n.metrics ? n.metrics.honestyGap : null;
-      R.gap.textContent = typeof gapV === 'number' ? 'Honesty gap ' + fmtMetric('honestyGap', gapV) : '';
+      R.gap.textContent = typeof gapV === 'number' ? metricLabel('honestyGap') + ' ' + fmtMetric('honestyGap', gapV) : '';
+      R.gap.title = metricHelp('honestyGap');
       var extra = [];
-      if (typeof g.wealth === 'number') extra.push('Gov. wealth ' + fmtMoney(g.wealth));
+      if (typeof g.wealth === 'number') extra.push("Governor's money " + fmtMoney(g.wealth));
       if (num(g.bribesTaken, 0) > 0) extra.push(g.bribesTaken + ' bribe' + (g.bribesTaken > 1 ? 's' : ''));
       R.wealth.textContent = extra.join(' · ');
       CARD_METERS.forEach(function (m) {
@@ -1164,7 +1205,8 @@
         row.title = metricLabel(m.id) + ': ' + fmtMetric(m.id, v);
       });
       var d = n.dials || (META.systems[n.system] && META.systems[n.system].dials) || {};
-      ['ownership', 'allocation', 'concentration', 'oversight'].forEach(function (k) {
+      DIALS.forEach(function (dd) {
+        var k = dd.id;
         R['d_' + k].style.width = (clamp(num(d[k], 0), 0, 1) * 100).toFixed(0) + '%';
       });
     });
@@ -1254,7 +1296,7 @@
     clear(box);
     var hl = 0;
     var tbl = h('table', { class: 'end-table' },
-      h('thead', null, h('tr', null, h('th', { text: 'Nation' }), h('th', { text: 'Welfare' }), h('th', { text: 'Inequality' }), h('th', { text: 'Trust' }), h('th', { text: 'Status' }))));
+      h('thead', null, h('tr', null, h('th', { text: 'Nation' }), h('th', { text: metricLabel('welfare') }), h('th', { text: metricLabel('gini') }), h('th', { text: metricLabel('trust') }), h('th', { text: 'Status' }))));
     var tb = h('tbody');
     nations().forEach(function (n) {
       tb.appendChild(h('tr', null, h('td', { text: n.name }), h('td', { text: fmtMetric('welfare', metricVal(n, 'welfare')) }),
@@ -1434,7 +1476,7 @@
     box.appendChild(h('h4', { text: 'Nations' }));
     box.appendChild(h('p', { class: 'hint', text: 'Edit a draft, then apply. Applying restarts the run from round 0.' }));
     (d.nations || []).forEach(function (cn, i) {
-      cn.governor = cn.governor || { type: 'aligned_ai', name: 'ARBITER', goal: 'welfare' };
+      cn.governor = cn.governor || { type: 'aligned_ai', goal: 'welfare' };
       cn.safeguards = cn.safeguards || {};
       var pre = 'su-' + i + '-';
       var sys = h('select', { id: pre + 'sys', onchange: function () { cn.system = sys.value; touch(); renderSetup(); } });
@@ -1443,10 +1485,10 @@
       var gt = h('select', { id: pre + 'gt', onchange: function () {
         cn.governor.type = gt.value; delete cn.governor.traits;
         if (gt.value === 'human_player') cn.governor.name = 'You';
-        else if (cn.governor.name === 'You') cn.governor.name = gt.value === 'aligned_ai' ? 'ARBITER-' + (i + 1) : 'Governor ' + (i + 1);
+        else if (cn.governor.name === 'You') delete cn.governor.name;   // the engine picks a name from its pool
         touch(); renderSetup();
       } });
-      META.govTypes.forEach(function (k) { gt.appendChild(h('option', { value: k, text: GOV_LABEL[k] || humanize(k) })); });
+      META.govTypes.forEach(function (k) { gt.appendChild(h('option', { value: k, text: govLabel(k) })); });
       gt.value = cn.governor.type;
       var goal = h('select', { id: pre + 'goal', onchange: function () { cn.governor.goal = goal.value; touch(); } });
       META.goals.forEach(function (k) { goal.appendChild(h('option', { value: k, text: GOAL_LABEL[k] || humanize(k) })); });
@@ -1480,11 +1522,14 @@
     });
     if ((d.nations || []).length < 5) {
       box.appendChild(h('button', { type: 'button', class: 'btn btn-sm', text: 'Add a nation', onclick: function () {
-        var used = d.nations.map(function (x) { return x.name; }), name = NATION_NAMES.filter(function (x) { return used.indexOf(x) < 0; })[0] || 'New State';
+        var used = d.nations.map(function (x) { return x.name; }), preset = NATION_PRESETS.filter(function (x) { return used.indexOf(x.name) < 0; })[0];
+        var name = preset ? preset.name : 'Nation ' + (d.nations.length + 1);
         var ids = d.nations.map(function (x) { return x.id; }), k = 1;
         while (ids.indexOf('n' + k) >= 0) k++;
-        d.nations.push({ id: 'n' + k, name: name, system: Object.keys(META.systems)[0] || 'free_market', population: 60, nuclear: false,
-          governor: { type: 'human_persona', name: 'Governor ' + k, goal: 'growth' }, policies: {}, safeguards: {} });
+        var nc = { id: 'n' + k, name: name, system: Object.keys(META.systems)[0] || 'free_market', population: 60, nuclear: false,
+          governor: { type: 'human_persona', goal: 'growth' }, policies: {}, safeguards: {} };
+        if (preset) { nc.emblem = preset.emblem; nc.colorKey = preset.colorKey; }
+        d.nations.push(nc);
         touch(); renderSetup();
       } }));
     }
@@ -1508,7 +1553,7 @@
       h('div', { class: 'field' }, h('label', { htmlFor: 'su-max', text: 'Max rounds' }), maxR)));
     box.appendChild(h('div', { class: 'field' }, h('div', { class: 'pol-top' }, h('label', { htmlFor: 'su-traitmix', text: 'Strongly self-interested people' }), shareOut), shareIn,
       h('p', { class: 'pol-desc', text: 'Share of citizens, and of persona governors, who put themselves first.' })));
-    box.appendChild(h('div', { class: 'field' }, h('label', { htmlFor: 'su-seed', text: 'Seed' }),
+    box.appendChild(h('div', { class: 'field', title: 'Same number = same story.' }, h('label', { htmlFor: 'su-seed', text: 'Seed (same number = same story)' }),
       h('div', { class: 'row' }, seed, h('button', { type: 'button', class: 'btn btn-sm', text: 'Random', onclick: function () { d.seed = newSeed(); seed.value = d.seed; touch(); } }))));
 
     box.appendChild(h('div', { class: 'apply-bar' },
@@ -1949,11 +1994,11 @@
     nations().forEach(function (n) {
       var g = n.governor || {}, mine = g.type === 'human_player';
       var row = h('div', { class: 'prop' },
-        h('span', { class: 'p-main' }, n.name + ' ', h('span', { class: 'badge', text: GOV_LABEL[g.type] || humanize(g.type) })),
+        h('span', { class: 'p-main' }, n.name + ' ', h('span', { class: 'badge', text: govLabel(g.type) })),
         n.alive === false ? h('span', { class: 'p-votes', text: 'Fallen' }) :
           h('button', { type: 'button', class: 'btn btn-sm', text: mine ? 'Hand to AI' : 'Govern it', onclick: function () {
             try {
-              if (mine) W().setGovernor(n.id, { type: 'aligned_ai', name: 'ARBITER-' + (S.tintIdx[n.id] + 1), goal: g.goal || 'welfare' });
+              if (mine) W().setGovernor(n.id, { type: 'aligned_ai', goal: g.goal || 'welfare' });
               else W().setGovernor(n.id, { type: 'human_player', name: 'You', goal: g.goal || 'welfare' });
             } catch (e) { console.warn('[aination ui] setGovernor failed', e); }
             renderGovern(); updateUI(); renderDecisions();
@@ -1974,6 +2019,7 @@
     renderStoryPick();
     renderStory();
     renderStoryCaption();
+    PIX.renderCine();
     sizeStory();
     MAP.L = null;
     MAP.resize();
@@ -2004,7 +2050,7 @@
       clear(mbox);
       mbox.dataset.nid = n.id;
       STORY_METERS.forEach(function (k) {
-        mbox.appendChild(h('div', { class: 'smeter' }, h('div', { class: 'l', text: n.name.split(' ')[0] + ' ' + metricLabel(k) }), h('div', { class: 'v' }),
+        mbox.appendChild(h('div', { class: 'smeter', title: metricHelp(k) }, h('div', { class: 'l', text: n.name.split(' ')[0] + ' ' + metricLabel(k) }), h('div', { class: 'v' }),
           h('div', { html: '<svg viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true"><path class="spark-area" d=""/><path class="spark-line" vector-effect="non-scaling-stroke" d=""/></svg>' })));
       });
     }
@@ -2016,7 +2062,7 @@
     });
     var sc = scenarioById(S.scenarioId);
     var lines = nations().map(function (x) {
-      return x.name + ': ' + systemLabel(x.system).toLowerCase() + ', ' + (GOV_LABEL[x.governor && x.governor.type] || 'governor').toLowerCase();
+      return x.name + ': ' + lcFirst(systemShort(x.system)) + ', ' + lcFirst(govLabel(x.governor && x.governor.type));
     });
     var cfgW = W().config.world || {}, sw = [];
     ['lobbying', 'migration', 'escalation', 'coups'].forEach(function (k) { if (cfgW[k] != null) sw.push(humanize(k).toLowerCase() + ' ' + (cfgW[k] ? 'on' : 'off')); });
@@ -2051,6 +2097,7 @@
     $('#resetBtn').addEventListener('click', function () { resetWorld(); setPlaying(true); });
     $('#storyBtn').addEventListener('click', function () { setStory(!S.story); });
     $$('#mapModeSeg button').forEach(function (b) { b.addEventListener('click', function () { PIX.set(b.dataset.mode); }); });
+    ['#cineBtn', '#storyCineBtn'].forEach(function (sel) { var b = $(sel); if (b) b.addEventListener('click', function () { PIX.setCine(!PIX.cineOn()); }); });
     $('#storyExit').addEventListener('click', function () { setStory(false); $('#storyBtn').focus(); });
     window.addEventListener('resize', function () { sizeStory(); });
     $$('#tabs .tab').forEach(function (b) {

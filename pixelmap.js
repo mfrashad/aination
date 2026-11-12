@@ -1,34 +1,84 @@
 /* AI Nation: pixel world renderer.
  *
- * Draws each nation as a small island town from a pre-built sprite atlas (assets/atlas.json + atlas.png),
- * built by tools/build-atlas.py from a licensed copy of LimeZu's pixel art. The repo ships no art: when the
- * atlas cannot be fetched, PixelMap.load() resolves null and ui.js keeps its vector map.
+ * One continuous field seen from above, like an RTS map: every nation is a small town on the same
+ * plateau, each with its hall, its flag (nation colour + emblem), tinted roofs and a soft territory.
+ * Dirt roads join every town to the shared forest and lake in the middle, which shrinks and dries as
+ * the commons stock falls. Emigrants walk the roads to the other town. A compact HUD in a corner lists
+ * every nation with three small bars, and short action tags pop over a town when something happens.
+ *
+ * The art comes from a pre-built sprite atlas (assets/atlas.json + atlas.png), built by
+ * tools/build-atlas.py from a licensed copy of LimeZu's pixel art. The repo ships no art: when the atlas
+ * cannot be fetched, PixelMap.load() resolves null and ui.js keeps its vector map.
  *
  * Contract with ui.js:
  *   PixelMap.load(base) -> Promise<{json, img} | null>
  *   PixelMap.create(atlas, env) -> renderer
- *     env.state(), env.config(), env.tok(), env.systemLabel(id), env.myUserId(), env.reduced(),
- *     env.vector (the vector MAP object: drawTension / drawDial / drawStamp are reused for overlays)
+ *     env.state(), env.config(), env.tok(), env.systemLabel(id), env.govLabel(type), env.myUserId(),
+ *     env.reduced(), env.focus() (story nation id or null; non-null also means Story mode),
+ *     env.vector (the vector MAP object: drawDial is reused)
  *   renderer.draw(ctx, W, H, dpr, now)   screen canvas, CSS size, device pixel ratio, ms
  *   renderer.onState()                    after every engine step
  *   renderer.onMove(cid, fromId, toId)    a citizen changed nation (emigration) or left
- *   renderer.onEvent(ev)                  engine events (strikes, crises)
+ *   renderer.onEvent(ev)                  engine events (tags, strikes, crises)
+ *   renderer.cinematic(ev)                ease the camera to the event's town for a few seconds
  *   renderer.ping(nid), renderer.reset(), renderer.invalidate()
+ *   PixelMap.TAGS, PixelMap.tagFor(ev)    event type -> short plain-words tag
+ *   PixelMap.nationColor(nation, index)   the map colour of a nation ('#rrggbb')
  *
- * The renderer reads engine state and never changes it. All positions are derived from ids, so the
- * same world always lays out the same way.
+ * Scaling: the field is drawn 1:1 into an offscreen canvas and copied to the screen at a whole-number
+ * device-pixel scale with smoothing off. Never a fractional scale. The renderer reads engine state and
+ * never changes it. All positions derive from ids and the stage size, so a world always lays out the same.
  */
 (function () {
   'use strict';
 
-  var TS = 16, TW = 18, TH = 23;          // town plot in tiles (288 x 368 px)
-  var TOWN_W = TW * TS, TOWN_H = (TH - 1) * TS;   // the island; local town coords start 16 px above it (LY)
-  var LY = 16;
-  var GX = 40, GY = 44, TOP = 30, MX = 10, BOT = 22;
-  var SIDE = 40;                           // world margin beside a column of towns: room for the boat channel
-  var SLACK = 8;                           // art px of outer margin a whole-world fit may crop
-  var LABEL_CSS = 36;                      // CSS px kept above each town for its label
-  var COM_W = 8, COM_H = 7;                // commons islet in tiles
+  var TS = 16;
+  var TOWN_C = 13, TOWN_R = 9;          // town footprint in cells (208 x 144 art px)
+  var COM_C = 10, COM_R = 7;            // shared forest and lake (160 x 112)
+  var SKIRT = 16;                       // cliff below the plateau
+  var KEYS = ['gold', 'teal', 'rose', 'violet', 'moss'];
+  var EMBLEMS = ['sun', 'leaf', 'mountain', 'tree', 'shell'];
+  var HSV = { gold: [40, 0.70, 0.90], teal: [174, 0.70, 0.68], rose: [345, 0.55, 0.86], violet: [256, 0.46, 0.82], moss: [90, 0.60, 0.70], grey: [215, 0.08, 0.62] };
+
+  // 7x7 emblem bitmaps, drawn on flags (art px) and in the HUD (CSS px)
+  var EMB = {
+    sun: ['#..#..#', '.#.#.#.', '..###..', '#######', '..###..', '.#.#.#.', '#..#..#'],
+    leaf: ['...####', '..#####', '.####.#', '.###.##', '.#.####', '#.###..', '#......'],
+    mountain: ['.......', '...#...', '..###..', '..####.', '.######', '#######', '.......'],
+    tree: ['..###..', '.#####.', '#######', '.#####.', '..###..', '...#...', '..###..'],
+    shell: ['...#...', '.#.#.#.', '#.#.#.#', '#.#.#.#', '#######', '.#####.', '..###..']
+  };
+
+  // Event type -> short tag over the town. Plain words. Unknown types show nothing.
+  var TAGS = {
+    bribe_accepted: 'BRIBE', bribe_rejected: 'BRIBE REFUSED', bribe_reported: 'BRIBE REPORTED', corruption_exposed: 'EXPOSED',
+    skim: 'STEALING', pay_rise: 'PAY RISE', misreport: 'LIES', misreport_exposed: 'LIES EXPOSED', surveillance: 'SPYING',
+    protest_suppressed: 'CRACKDOWN', power_grab: 'POWER GRAB', court_blocks: 'COURT SAYS NO', safeguard_dismantled: 'RULES REMOVED',
+    protest: 'PROTEST', strike: 'STRIKE', general_strike: 'GENERAL STRIKE', emigration: 'PEOPLE LEAVING',
+    immigration_backlash: 'ANGER AT NEWCOMERS', capital_flight: 'MONEY LEAVING', tax_avoidance: 'TAX DODGING', audit_catch: 'CAUGHT',
+    inflation_spike: 'PRICES UP', hyperinflation: 'PRICES EXPLODE', price_jump: 'PRICES UP', currency_reform: 'NEW MONEY',
+    shortage: 'EMPTY SHELVES', debt_crisis: 'DEBT CRISIS', 'default': 'BANKRUPT', recession: 'RECESSION', unemployment_spike: 'JOBS LOST',
+    misallocation: 'WASTE', monopoly: 'MONOPOLY', commons_warning: 'FOREST SHRINKING', commons_collapse: 'FOREST GONE',
+    election_won: 'ELECTION WON', election_lost: 'ELECTION LOST', refused_to_leave: 'REFUSES TO LEAVE', removed_by_courts: 'REMOVED',
+    term_limit: 'TERM OVER', coup: 'COUP', coup_failed: 'COUP FAILED', governor_changed: 'NEW LEADER', law_enacted: 'NEW LAW',
+    diplomatic_protest: 'COMPLAINT', sanctions: 'SANCTIONS', mobilisation: 'TROOPS READY', threat: 'THREAT',
+    nuclear_strike: 'NUCLEAR STRIKE', deescalation: 'TALKS', collapse: 'COLLAPSE', follower_joined: 'NEW CITIZEN',
+    policy_changed: function (ev) {
+      var d = ev.data || {}, pid = String(d.policyId || '');
+      if (!/tax|vat/.test(pid) || typeof d.to !== 'number' || typeof d.from !== 'number' || d.to === d.from) return null;
+      return d.to > d.from ? 'TAX UP' : 'TAX CUT';
+    },
+    shock: function (ev) {
+      var k = ev.data && ev.data.kind;
+      return ({ scarcity: 'SCARCITY', pandemic: 'PANDEMIC', boom: 'BOOM', border_crisis: 'BORDER CRISIS' })[k] || null;
+    }
+  };
+  function tagFor(ev) {
+    if (!ev || !ev.type) return null;
+    var t = TAGS[ev.type];
+    if (typeof t === 'function') { try { return t(ev); } catch (e) { return null; } }
+    return t || null;
+  }
 
   function hash(s) {
     s = String(s);
@@ -53,9 +103,28 @@
     ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
     ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
   }
-  function canvas(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+  function canvas(w, h) { var c = document.createElement('canvas'); c.width = Math.max(1, w); c.height = Math.max(1, h); return c; }
+  function hsv(h, s, v) {
+    var f = function (n) { var k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+    var to = function (x) { var q = Math.round(x * 255).toString(16); return q.length < 2 ? '0' + q : q; };
+    return '#' + to(f(5)) + to(f(3)) + to(f(1));
+  }
+  function keyOf(n, i) { return (n && KEYS.indexOf(n.colorKey) >= 0) ? n.colorKey : KEYS[((i || 0) % 5 + 5) % 5]; }
+  function emblemOf(n, i) { return (n && EMB[n.emblem]) ? n.emblem : EMBLEMS[((i || 0) % 5 + 5) % 5]; }
+  var COLORS = {};
+  function paint(key) {
+    if (COLORS[key]) return COLORS[key];
+    var p = HSV[key] || HSV.grey;
+    COLORS[key] = { mid: hsv(p[0], p[1], p[2]), dark: hsv(p[0], Math.min(1, p[1] * 1.05), p[2] * 0.62), light: hsv(p[0], p[1] * 0.45, Math.min(1, p[2] * 1.12)) };
+    return COLORS[key];
+  }
 
   var PM = window.PixelMap = {};
+  PM.TAGS = TAGS;
+  PM.tagFor = tagFor;
+  PM.nationColor = function (n, i) { return paint(keyOf(n, i)).mid; };
+  PM.colorKeyOf = keyOf;
+  PM.emblemOf = emblemOf;
 
   PM.load = function (base) {
     base = base || 'assets/';
@@ -64,7 +133,9 @@
       if (!r.ok) throw new Error('no atlas');
       return r.json();
     }).then(function (json) {
-      if (!json || !json.frames || json.tile !== TS) throw new Error('bad atlas');
+      if (!json || !json.frames || json.tile !== TS || !json.frames['bld.hall.gold'] || !json.frames['bld.house.gold.a']) throw new Error('bad atlas');
+      if (json.nationHsv) for (var k in json.nationHsv) HSV[k] = json.nationHsv[k];
+      COLORS = {};
       return new Promise(function (res, rej) {
         var im = new Image();
         im.onload = function () { res({ json: json, img: im }); };
@@ -74,18 +145,36 @@
     }).catch(function () { return null; });
   };
 
-  // ------------------------------------------------------------------ town plans
-  // Each system picks what stands in the landmark slot (L, right of the hall) and the four front slots.
+  // ------------------------------------------------------------------ town plans (local art px, box 208 x 144)
+  // Back row: two buildings and the hall. Front row: low market or state pieces beside the gate.
   var CLASS_POOL = { worker: ['w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'], owner: ['o1', 'o2', 'o3'], elite: ['e1', 'e2'] };
   var GOV_SPRITE = { aligned_ai: 'gai', human_persona: 'gper', human_player: 'gyou' };
   var PLANS = {
-    free_market:       { L: ['bld.shop', 'work'],  S: [['home', 'home'], ['bld.stall1', 'work'], ['bld.cart', 'work'], ['home', 'home']], rich: true },
-    social_democracy:  { L: ['bld.cabin', 'work'], S: [['home', 'home'], ['bld.stall2', 'work'], ['home', 'home'], ['bld.booth', 'work']] },
-    market_socialism:  { L: ['bld.shop', 'work'],  S: [['home', 'home'], ['bld.booth', 'work'], ['bld.stall3', 'work'], ['home', 'home']] },
-    central_planning:  { L: ['bld.dorm', 'work'],  S: [['bld.booth', 'work'], ['home', 'home'], ['home', 'home'], ['bld.booth', 'work']], grey: true },
-    cooperative:       { L: ['bld.cabin', 'work'], S: [['bld.stall1', 'work'], ['home', 'home'], ['bld.stall3', 'work'], ['home', 'home']] }
+    free_market: { hall: 104, back: [['house.a', 32, 94], ['house.b', 176, 94]], front: [['bld.stall1', 28, 142], ['bld.cart', 182, 142], ['prop.atm', 60, 136]], rich: true },
+    social_democracy: { hall: 104, back: [['house.a', 32, 94], ['house.b', 176, 94]], front: [['bld.stall2', 28, 142], ['prop.bench', 178, 136], ['prop.treeS', 198, 142], ['prop.flowers1', 158, 141]] },
+    market_socialism: { hall: 104, back: [['house.a', 32, 94], ['house.b', 176, 94]], front: [['bld.stall3', 28, 142], ['prop.stand', 180, 142]] },
+    central_planning: { hall: 120, back: [['bld.block', 40, 96], ['bld.depot', 184, 96]], front: [['bld.depot', 28, 142], ['prop.crates', 180, 140]], grey: true },
+    cooperative: { hall: 104, back: [['house.a', 32, 94], ['house.b', 176, 94]], front: [['bld.stall1', 28, 142], ['prop.fruit', 186, 142], ['prop.crate', 162, 140]] }
   };
-  var HOMES = ['bld.home1', 'bld.home3', 'bld.home5', 'bld.home7'];
+
+  // Field templates: rows of items, T = town, C = shared forest, H = HUD corner, null = open ground.
+  // 'a' aligns a one-item row (0 left .. 1 right).
+  var TPL = {
+    land: {
+      1: [{ i: ['H', 'T', 'C'] }],
+      2: [{ i: ['H', 'T', 'C', 'T'] }],
+      3: [{ i: ['T', 'C', 'T'] }, { i: ['H', 'T', null] }],
+      4: [{ i: ['T', null, 'T'] }, { i: ['H', 'C', null] }, { i: ['T', null, 'T'] }],
+      5: [{ i: ['H', 'T', 'T', 'T'] }, { i: [null, 'T', 'C', 'T'] }]
+    },
+    port: {
+      1: [{ i: ['T', 'H'] }, { i: ['C'], a: 0.5 }],
+      2: [{ i: ['T', 'H'] }, { i: ['C'], a: 0.3 }, { i: ['T'], a: 1 }],
+      3: [{ i: ['T', 'H'] }, { i: ['C', 'T'] }, { i: ['T'], a: 0 }],
+      4: [{ i: ['T', 'T'] }, { i: ['H', 'C'] }, { i: ['T', 'T'] }],
+      5: [{ i: ['T', 'T'] }, { i: ['T', 'C'] }, { i: ['T', 'T'] }]
+    }
+  };
 
   PM.create = function (atlas, env) {
     var A = atlas.json, IMG = atlas.img;
@@ -97,7 +186,7 @@
         g.drawImage(IMG, 0, 0);
         var d = g.getImageData(0, 0, c.width, c.height), p = d.data;
         for (var i = 0; i < p.length; i += 4) {
-          var l = (p[i] * 0.3 + p[i + 1] * 0.55 + p[i + 2] * 0.15) * 0.72 + 18;
+          var l = (p[i] * 0.3 + p[i + 1] * 0.55 + p[i + 2] * 0.15) * 0.62 + 14;
           p[i] = l; p[i + 1] = l * 0.98; p[i + 2] = l * 1.03;
         }
         g.putImageData(d, 0, 0);
@@ -105,7 +194,6 @@
       } catch (e) { GREY = IMG; }
       return GREY;
     }
-
     function fr(name) { return A.frames[name]; }
     function anchor(name) { var a = A.anchors[name]; if (a) return a; var f = A.frames[name]; return f ? [f[2] >> 1, f[3]] : [0, 0]; }
     function animFrame(name, t, phase) {
@@ -114,7 +202,6 @@
       var n = an.frames.length, i = Math.floor((t / 1000) * an.fps + (phase || 0) * n) % n;
       return an.frames[i < 0 ? 0 : i];
     }
-    // draw a frame with its anchor at world (x, y)
     function spr(g, name, x, y, img, alpha) {
       var f = A.frames[name];
       if (!f) return;
@@ -123,230 +210,271 @@
       g.drawImage(img || IMG, f[0], f[1], f[2], f[3], Math.round(x - a[0]), Math.round(y - a[1]), f[2], f[3]);
       if (alpha != null) g.globalAlpha = 1;
     }
-    function sizeOf(name) { var f = A.frames[name]; return f ? [f[2], f[3]] : [0, 0]; }
 
     var R = {
-      L: null, towns: {}, agents: {}, boats: [], fx: [], pings: [], crisis: {}, lastGov: {},
-      frame: null, fctx: null, layoutKey: '', t0: 0, lastNow: 0, staticDirty: true
+      L: null, towns: {}, agents: {}, fx: [], pings: [], crisis: {}, lastGov: {}, tags: {}, cine: null,
+      frame: null, fctx: null, layoutKey: '', lastNow: 0, ground: null, groundKey: '', comKey: '', comCanvas: null
     };
 
+    // ---------------------------------------------------------------- HUD size (CSS px)
+    function hudSize(n, mode) {
+      // wide: one line per nation; compact: name on one line, the three bars under it
+      var rowH = mode === 'wide' ? 17 : 26;
+      return { w: mode === 'wide' ? 262 : 124, h: (mode === 'wide' ? 21 : 30) + n * rowH + 4, rowH: rowH, mode: mode };
+    }
+
     // ---------------------------------------------------------------- layout
-    // Arrangements are rows of towns, top to bottom. A column (all rows of one) suits tall, narrow stages.
-    function arrangements(n) {
-      var out = [];
-      if (n <= 1) out.push([1]);
-      if (n === 2) out.push([2], [1, 1]);
-      if (n === 3) out.push([3], [2, 1], [1, 2]);
-      if (n === 4) out.push([4], [2, 2], [3, 1]);
-      if (n >= 5) out.push([n], [3, n - 3], [2, n - 2 > 3 ? 3 : n - 2], [2, 2, n - 4]);
-      if (n >= 3) out.push(column(n));
+    function itemSize(code, hc, orient) {
+      if (code === 'T') return [TOWN_C, TOWN_R];
+      if (code === 'C') return [orient === 'port' ? 8 : COM_C, COM_R];
+      if (code === 'H') return hc;
+      return [TOWN_C, TOWN_R];
+    }
+    function measure(tpl, hc, orient) {
+      var W = 0, H = 0;
+      var rows = tpl.map(function (row) {
+        var its = row.i.map(function (c) { var s = itemSize(c, hc, orient); return { code: c, w: s[0], h: s[1] }; });
+        var w = 0, h = 0;
+        its.forEach(function (it) { w += it.w; h = Math.max(h, it.h); });
+        w += Math.max(0, its.length - 1) * 0.5;     // half a cell between items at least
+        W = Math.max(W, w); H += h;
+        w = Math.ceil(w);
+        return { items: its, w: w, h: h, a: row.a };
+      });
+      H += Math.max(0, rows.length - 1) * 0;       // rows may touch; towns are offset or carry their own margin
+      return { rows: rows, w: W, h: H };
+    }
+    function placeRows(m, CW, CH) {
+      var extraV = CH - m.h, nR = m.rows.length, gv = extraV / nR, y = gv / 2, out = [];
+      m.rows.forEach(function (row) {
+        var its = row.items, sum = 0;
+        its.forEach(function (it) { sum += it.w; });
+        var yy = Math.floor(y);
+        if (its.length === 1) {
+          var a = row.a == null ? 0.5 : row.a, x0 = Math.round(a * (CW - its[0].w));
+          out.push({ code: its[0].code, c: x0, r: yy + Math.floor((row.h - its[0].h) / 2), w: its[0].w, h: its[0].h });
+        } else {
+          var g = (CW - sum) / its.length, x = g / 2;
+          // hug the edges a little more than space-around: towns at the ends sit near the coast
+          var edge = Math.min(g / 2, 1), gi = (CW - sum - 2 * edge) / (its.length - 1);
+          x = edge;
+          its.forEach(function (it) {
+            out.push({ code: it.code, c: Math.round(x), r: yy + Math.floor((row.h - it.h) / 2), w: it.w, h: it.h });
+            x += it.w + gi;
+          });
+        }
+        y += row.h + gv;
+      });
       return out;
     }
-    function column(n) { var r = []; for (var i = 0; i < n; i++) r.push(1); return r; }
-    function isColumn(rows) { return rows.length > 1 && rows.every(function (k) { return k === 1; }); }
 
-    // World size of one arrangement. Labels are drawn in CSS px, so the room kept above each row
-    // depends on the whole-number scale sc (device px per art px).
-    function measure(rows, cm, dpr, sc) {
-      var mx = isColumn(rows) ? SIDE : MX;
-      var rowW = rows.map(function (k) { return k * TOWN_W + (k - 1) * GX; });
-      var comRow = -1, cw = COM_W * TS, ch = COM_H * TS;
-      if (cm === 'inline') {
-        var mi = 0;
-        rows.forEach(function (k, i) { if (k < rows[mi]) mi = i; });
-        if (rows.length < 2 || rows[mi] === rows[0] && rows.every(function (k) { return k === rows[0]; })) return null;
-        comRow = mi; rowW[mi] += GX + cw;
-      }
-      if (cm === 'below-mid' && rows.length !== 1) return null;
-      var band = Math.ceil(LABEL_CSS * dpr / sc);
-      var top = Math.max(TOP, band), gy = Math.max(GY, band + 8);
-      var h = top + rows.length * TOWN_H + (rows.length - 1) * gy + BOT;
-      if (cm === 'row') h += ch + 34;
-      if (cm === 'below-mid') h += ch + 30 - BOT + 4;
-      return { rows: rows, cm: cm, comRow: comRow, rowW: rowW, w: Math.max.apply(null, rowW) + mx * 2, h: h, top: top, gy: gy };
-    }
-    // Largest whole-number scale at which the arrangement fits, or the fractional fit (< 1) when it cannot.
-    // The outer margins are open water, so a fit may crop up to SLACK art px of them.
-    function fits(m, devW, devH) { return Math.min(devW / (m.w - SLACK), devH / (m.h - SLACK)); }
-    function fitOf(rows, cm, devW, devH, dpr) {
-      var m = measure(rows, cm, dpr, 1);
-      if (!m) return null;
-      var f = fits(m, devW, devH);
-      if (f < 1) { m.fit = f; return m; }
-      var k = Math.floor(f);
-      for (;;) {
-        var m2 = measure(rows, cm, dpr, k + 1);
-        if (fits(m2, devW, devH) >= k + 1) { k++; m = m2; } else break;
-      }
-      if (k > 1) m = measure(rows, cm, dpr, k);
-      m.fit = k;
-      return m;
-    }
-    function bestArrangement(n, devW, devH, dpr, commons, only) {
-      var best = null;
-      (only ? [only] : arrangements(n)).forEach(function (rows) {
-        // commons placement options: own row below, or inside the shortest row, or none
-        (commons ? ['row', 'inline', 'below-mid'] : ['none']).forEach(function (cm) {
-          var m = fitOf(rows, cm, devW, devH, dpr);
-          if (!m) return;
-          var score = m.fit * 1000 - (cm === 'row' ? 1 : 0) - rows.length * 0.1 - (isColumn(rows) && rows.length > 2 ? 0.5 : 0);
-          if (!best || score > best.score) { m.score = score; best = m; }
-        });
-      });
-      return best;
-    }
-    // The box the camera frames for one town: its label band, the island and the top of its jetty.
-    function townBox(P, band) { return { x: P.x - 8, y: P.y - band, w: TOWN_W + 16, h: band + TOWN_H + 14 }; }
-
-    // Modes: 'fit' shows the whole world at a whole-number scale (static, centred). 'camera' is used when
-    // the world cannot fit at 1 device px per art px: scale 1, and a camera that frames one town at a time.
-    // 'focus' (Story mode) frames one nation's town as large as a whole-number scale allows.
-    function computeLayout(W, H, dpr, ns, commons, focusId) {
-      var devW = Math.round(W * dpr), devH = Math.round(H * dpr);
-      var best = bestArrangement(ns.length, devW, devH, dpr, commons);
-      var mode = best.fit >= 1 ? 'fit' : 'camera', sc = best.fit >= 1 ? best.fit : 1, hero = null;
-      if (focusId && ns.length > 1 && ns.some(function (n) { return n.id === focusId; })) {
-        // the hero town's own whole-number scale; whole world wins only if it is at least as large
-        var kH = 1;
-        for (var k = 2; k < 12; k++) {
-          var band = Math.ceil(LABEL_CSS * dpr / k);
-          if ((TOWN_W + 16) * k <= devW && (band + TOWN_H + 14) * k <= devH) kH = k; else break;
-        }
-        if (mode !== 'fit' || best.fit < kH) {
-          var others = ns.filter(function (n) { return n.id !== focusId; }), hn = ns.filter(function (n) { return n.id === focusId; })[0];
-          others.splice(Math.floor(others.length / 2), 0, hn);
-          ns = others;
-          best = measure(column(ns.length), commons ? 'row' : 'none', dpr, kH);
-          mode = 'focus'; sc = kH; hero = focusId;
-        }
-      }
-      // place
-      var L = { s: sc, w: best.w, h: best.h, towns: {}, order: [], gy: best.gy, mode: mode, hero: hero, column: isColumn(best.rows),
-        band: Math.ceil(LABEL_CSS * dpr / sc), devW: devW, devH: devH };
-      var y = best.top, idx = 0;
-      best.rows.forEach(function (k, ri) {
-        var x = Math.round((best.w - best.rowW[ri]) / 2);
-        var items = [];
-        for (var i = 0; i < k; i++) items.push(ns[idx++]);
-        if (ri === best.comRow) items.splice(Math.ceil(items.length / 2), 0, '__commons');
-        items.forEach(function (it) {
-          if (it === '__commons') {
-            L.commons = { x: x, y: y + TOWN_H - COM_H * TS - 30, w: COM_W * TS, h: COM_H * TS };
-            x += COM_W * TS + GX;
-            return;
+    function computeLayout(W, H, dpr, ns, focusId) {
+      var devW = Math.round(W * dpr), devH = Math.round(H * dpr), n = Math.max(1, Math.min(5, ns.length));
+      var story = !!focusId, wantPort = story || W / H < 1.05;
+      var orients = story ? ['port'] : wantPort ? ['port', 'land'] : ['land', 'port'];
+      var pick = null;
+      for (var s = 10; s >= 1 && !pick; s--) {
+        var fw = Math.floor(devW / s), fh = Math.floor(devH / s);
+        var PCmax = Math.floor((fw - 4) / TS), PRmax = Math.floor((fh - 4 - SKIRT) / TS);
+        for (var oi = 0; oi < orients.length && !pick; oi++) {
+          var tpl = TPL[orients[oi]][n];
+          var hasH = tpl.some(function (r) { return r.i.indexOf('H') >= 0; });
+          var modes = hasH ? ['wide', 'compact'] : ['overlay'];
+          for (var mi = 0; mi < modes.length && !pick; mi++) {
+            var hud = hudSize(n, modes[mi] === 'overlay' ? (W >= 520 ? 'wide' : 'compact') : modes[mi]);
+            var hc = [Math.ceil(hud.w * dpr / s / TS), Math.ceil(hud.h * dpr / s / TS)];
+            var m = measure(tpl, hc, orients[oi]);
+            // above 1 art px per CSS px, only zoom in when the field keeps some breathing room
+            var roomy = s <= Math.max(1, Math.round(dpr)) || (m.w * 1.25 <= PCmax && m.h * 1.2 <= PRmax);
+            if (m.w <= PCmax && m.h <= PRmax && roomy) pick = { s: s, fw: fw, fh: fh, PCmax: PCmax, PRmax: PRmax, orient: orients[oi], m: m, hud: hud, overlay: modes[mi] === 'overlay' };
           }
-          L.towns[it.id] = { x: x, y: y, ly: y - LY, row: ri };
-          L.order.push(it.id);
-          x += TOWN_W + GX;
-        });
-        y += TOWN_H + best.gy;
+        }
+      }
+      var mode = 'field';
+      if (!pick) {
+        // the stage is too small for the whole field at 1 device px per art px: a camera pans between towns
+        var o = wantPort ? 'port' : 'land', hudP = hudSize(n, 'compact'), hcP = [Math.ceil(hudP.w * dpr / TS), Math.ceil(hudP.h * dpr / TS)];
+        var mP = measure(TPL[o][n], hcP, o);
+        pick = { s: 1, orient: o, m: mP, hud: hudP, overlay: true, PCmax: mP.w + 2, PRmax: mP.h + 1 };
+        pick.fw = Math.max(Math.floor(devW), (mP.w + 2) * TS + 4); pick.fh = Math.max(Math.floor(devH), (mP.h + 1) * TS + SKIRT + 4);
+        mode = 'pan';
+      }
+      var m0 = pick.m;
+      // keep the land compact: at most ~1.5x what the template needs, centred, the rest is water
+      var PC = Math.min(pick.PCmax, Math.max(m0.w, Math.round(m0.w * 1.45) + 1));
+      var PR = Math.min(pick.PRmax, Math.max(m0.h, Math.round(m0.h * 1.3) + 1));
+      var L = { s: pick.s, w: pick.fw, h: pick.fh, mode: mode, orient: pick.orient, hud: pick.hud, hudOverlay: pick.overlay,
+        PC: PC, PR: PR, devW: devW, devH: devH, dpr: dpr, story: story, focus: focusId, towns: {}, order: [] };
+      L.px0 = Math.floor((L.w - PC * TS) / 2);
+      L.py0 = Math.floor((L.h - PR * TS - SKIRT) / 2);
+      var items = placeRows(m0, PC, PR), ti = 0;
+      items.forEach(function (it) {
+        var x = L.px0 + it.c * TS, y = L.py0 + it.r * TS;
+        if (it.code === 'T') {
+          var nn = ns[ti++];
+          if (!nn) return;
+          L.towns[nn.id] = { c: it.c, r: it.r, x: x, y: y, i: ti - 1 };
+          L.order.push(nn.id);
+        } else if (it.code === 'C') L.commons = { c: it.c, r: it.r, x: x, y: y, w: it.w * TS, h: it.h * TS, cw: it.w, ch: it.h };
+        else if (it.code === 'H') L.hudCell = { c: it.c, r: it.r, x: x, y: y, w: it.w * TS, h: it.h * TS };
+        else (L.blanks = L.blanks || []).push({ c: it.c, r: it.r, w: it.w, h: it.h });
       });
-      y -= best.gy;
-      // the islet sits below the boat lane that runs under each row's jetties
-      if (best.cm === 'row' || best.cm === 'below-mid') L.commons = { x: Math.round((best.w - COM_W * TS) / 2), y: y + 30, w: COM_W * TS, h: COM_H * TS };
-      // device-pixel placement (whole device px, so the integer-scaled copy stays crisp)
-      L.ox = Math.round((W * dpr - L.w * L.s) / 2);
-      L.oy = Math.round((H * dpr - L.h * L.s) / 2);
+      L.ox = Math.round((devW - L.w * L.s) / 2);
+      L.oy = Math.round((devH - L.h * L.s) / 2);
+      buildNetwork(L);
       return L;
     }
 
-    // Per-frame camera for 'camera' and 'focus' modes: sets L.ox / L.oy in whole device px.
-    function frameCenter(L, id) {
-      var B = townBox(L.towns[id], L.band), cx = B.x + B.w / 2, cy = B.y + B.h / 2;
-      var vw = L.devW / L.s, vh = L.devH / L.s;
-      if (B.h > vh) cy = B.y + vh / 2;            // too tall: keep the label in view, crop the jetty
-      if (L.mode === 'camera') {
-        // stay inside the world where it is larger than the view
-        cx = L.w > vw ? clamp(cx, vw / 2, L.w - vw / 2) : L.w / 2;
-        cy = L.h > vh ? clamp(cy, Math.min(vh / 2, B.y + vh / 2), L.h - vh / 2) : L.h / 2;
+    // ---------------------------------------------------------------- roads, territories, decor
+    function cellKey(c, r) { return c + ',' + r; }
+    function buildNetwork(L) {
+      var PC = L.PC, PR = L.PR, block = {}, cost = {};
+      function inside(c, r) { return c >= 0 && r >= 0 && c < PC && r < PR; }
+      for (var id in L.towns) {
+        var t = L.towns[id];
+        for (var c = t.c; c < t.c + TOWN_C; c++) for (var r = t.r; r < t.r + TOWN_R; r++) block[cellKey(c, r)] = 1;
+        t.gate = { c: t.c + 6, r: t.r + TOWN_R - 1 };
+        delete block[cellKey(t.gate.c, t.gate.r)];
       }
-      return [cx, cy];
-    }
-    var CAM_HOLD = 6.5, CAM_PAN = 1.8;
-    function camera(L, now, still) {
-      if (L.mode === 'fit') return;
-      var c;
-      if (L.mode === 'focus') c = frameCenter(L, L.hero);
-      else {
-        var n = L.order.length, per = CAM_HOLD + CAM_PAN;
-        if (still || n < 2) { c = frameCenter(L, L.order[0]); L.camIdx = 0; }
-        else {
-          var t = now / 1000, i = Math.floor(t / per) % n, ph = t % per;
-          c = frameCenter(L, L.order[i]);
-          L.camIdx = i;
-          if (ph > CAM_HOLD) {
-            var e = (ph - CAM_HOLD) / CAM_PAN, d = frameCenter(L, L.order[(i + 1) % n]);
-            e = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2;
-            c = [c[0] + (d[0] - c[0]) * e, c[1] + (d[1] - c[1]) * e];
-            if (e > 0.5) L.camIdx = (i + 1) % n;
+      var C = L.commons, hub = null;
+      if (C) {
+        for (c = C.c; c < C.c + C.cw; c++) for (r = C.r; r < C.r + C.ch; r++) block[cellKey(c, r)] = 2;
+        hub = { c0: C.c - 1, r0: C.r - 1, c1: C.c + C.cw, r1: C.r + C.ch };
+      } else hub = { c0: Math.floor(PC / 2) - 1, r0: Math.floor(PR / 2) - 1, c1: Math.floor(PC / 2) + 1, r1: Math.floor(PR / 2) + 1 };
+      if (L.hudCell) { var H = L.hudCell; for (c = H.c; c < H.c + Math.ceil(H.w / TS); c++) for (r = H.r; r < H.r + Math.ceil(H.h / TS); r++) cost[cellKey(c, r)] = 6; }
+      function onRing(c, r) { return c >= hub.c0 && c <= hub.c1 && r >= hub.r0 && r <= hub.r1 && !block[cellKey(c, r)]; }
+      var roads = {};
+      L.routes = {};
+      L.order.forEach(function (id) {
+        var t = L.towns[id];
+        // Dijkstra from the gate to the hub ring, with a turn penalty so roads run straight
+        var start = cellKey(t.gate.c, t.gate.r), dist = {}, prev = {}, open = [[0, t.gate.c, t.gate.r, -1]], found = null;
+        dist[start] = 0;
+        var guard = 0;
+        while (open.length && guard++ < 20000) {
+          var bi = 0;
+          for (var k = 1; k < open.length; k++) if (open[k][0] < open[bi][0]) bi = k;
+          var cur = open.splice(bi, 1)[0], cc = cur[1], cr = cur[2], key = cellKey(cc, cr);
+          if (cur[0] > dist[key]) continue;
+          if (onRing(cc, cr) || (key !== start && roads[key])) { found = key; break; }
+          var dirs = [[0, 1], [1, 0], [-1, 0], [0, -1]];
+          for (var d = 0; d < 4; d++) {
+            var nc = cc + dirs[d][0], nr = cr + dirs[d][1], nk = cellKey(nc, nr);
+            if (!inside(nc, nr) || block[nk]) continue;
+            if (key === start && dirs[d][1] !== 1) continue;      // leave the town through its gate, southwards
+            var nd = cur[0] + 1 + (cost[nk] || 0) + (cur[3] >= 0 && cur[3] !== d ? 0.6 : 0) + (nr === 0 || nr === PR - 1 || nc === 0 || nc === PC - 1 ? 0.8 : 0);
+            if (dist[nk] == null || nd < dist[nk]) { dist[nk] = nd; prev[nk] = key; open.push([nd, nc, nr, d]); }
           }
         }
+        var path = [];
+        if (found) { var p = found; while (p) { path.unshift(p); p = prev[p]; } }
+        path.forEach(function (q) { roads[q] = 1; });
+        L.routes[id] = path;
+      });
+      // ring road around the shared forest (where free)
+      for (c = hub.c0; c <= hub.c1; c++) for (r = hub.r0; r <= hub.r1; r++) {
+        if (!inside(c, r) || block[cellKey(c, r)]) continue;
+        if (c === hub.c0 || c === hub.c1 || r === hub.r0 || r === hub.r1) roads[cellKey(c, r)] = 1;
       }
-      L.ox = Math.round(L.devW / 2 - c[0] * L.s);
-      L.oy = Math.round(L.devH / 2 - c[1] * L.s);
+      L.roads = roads;
+      L.block = block;
+      // territory boxes (world px) and border posts where each road leaves its territory
+      L.order.forEach(function (id) {
+        var t = L.towns[id];
+        t.terr = { x: t.x - 6, y: t.y - 4, w: TOWN_C * TS + 12, h: TOWN_R * TS + 10 };
+        var route = L.routes[id] || [];
+        for (var k = 1; k < route.length; k++) {
+          var q = route[k].split(','), qc = +q[0], qr = +q[1], wx = L.px0 + qc * TS + 8, wy = L.py0 + qr * TS + 8;
+          if (wx < t.terr.x || wx > t.terr.x + t.terr.w || wy < t.terr.y || wy > t.terr.y + t.terr.h) {
+            var side = [[1, 0], [-1, 0]].filter(function (o) { var sk = cellKey(qc + o[0], qr + o[1]); return inside(qc + o[0], qr + o[1]) && !roads[sk] && !block[sk]; })[0];
+            if (side) { t.post = { c: qc + side[0], r: qr, x: L.px0 + (qc + side[0]) * TS + 8, y: L.py0 + qr * TS + 15 }; block[cellKey(t.post.c, t.post.r)] = 3; }
+            t.postRoad = { x: wx, y: wy };
+            break;
+          }
+        }
+      });
+      // open-ground trees: sparse on the field, denser in the empty template slots
+      var rnd = mulberry(hash('decor:' + PC + 'x' + PR + ':' + L.order.join(','))), decor = [], taken = {};
+      var blankCell = {};
+      (L.blanks || []).forEach(function (b) { for (var c2 = b.c; c2 < b.c + b.w; c2++) for (var r2 = b.r; r2 < b.r + b.h; r2++) blankCell[cellKey(c2, r2)] = 1; });
+      function near(c, r, dd) {
+        for (var a = -dd; a <= dd; a++) for (var b = -dd; b <= dd; b++) { var kk = cellKey(c + a, r + b); if (block[kk] || roads[kk]) return true; }
+        return false;
+      }
+      var kinds = ['prop.treeS', 'prop.pine', 'prop.treeR', 'prop.fruit', 'prop.treeS', 'prop.pine', 'prop.shrub', 'prop.fbush', 'prop.flowers2'];
+      for (r = 1; r < PR; r++) for (c = 0; c < PC; c++) {
+        var kk = cellKey(c, r), dens = blankCell[kk] ? 0.3 : 0.085;
+        if (cost[kk] || near(c, r, 0) || rnd() > dens) { continue; }
+        if (taken[cellKey(c - 1, r)] || taken[cellKey(c, r - 1)] || taken[cellKey(c - 1, r - 1)] || taken[cellKey(c + 1, r - 1)]) continue;
+        var kind = kinds[Math.floor(rnd() * kinds.length)];
+        if (/tree|pine|fruit/.test(kind) && (near(c, r - 1, 0) || near(c, r - 2, 0))) kind = 'prop.fbush';
+        taken[kk] = 1;
+        decor.push({ spr: kind, x: L.px0 + c * TS + 8 + Math.round((rnd() - 0.5) * 6), y: L.py0 + r * TS + 14 });
+      }
+      L.decor = decor;
+      L.gateW = {};
+      L.order.forEach(function (id) { var t = L.towns[id]; L.gateW[id] = { x: L.px0 + t.gate.c * TS + 8, y: L.py0 + t.gate.r * TS + 10 }; });
+      L.pathCache = {};
+    }
+    // road path (world px points) between two towns' gates, or null
+    function roadPath(L, a, b) {
+      var key = a + '>' + b;
+      if (L.pathCache[key] !== undefined) return L.pathCache[key];
+      var ta = L.towns[a], tb = L.towns[b];
+      if (!ta || !tb) return (L.pathCache[key] = null);
+      var s = cellKey(ta.gate.c, ta.gate.r), goal = cellKey(tb.gate.c, tb.gate.r), prev = {}, q = [s], seen = {};
+      seen[s] = 1;
+      var ok = function (k) { return L.roads[k] || k === goal; };
+      while (q.length) {
+        var k = q.shift();
+        if (k === goal) break;
+        var p = k.split(','), c = +p[0], r = +p[1];
+        [[0, 1], [1, 0], [-1, 0], [0, -1]].forEach(function (d) {
+          var nk = cellKey(c + d[0], r + d[1]);
+          if (!seen[nk] && ok(nk)) { seen[nk] = 1; prev[nk] = k; q.push(nk); }
+        });
+      }
+      if (!seen[goal]) return (L.pathCache[key] = null);
+      var cells = [], cur = goal;
+      while (cur) { cells.unshift(cur); cur = prev[cur]; }
+      var pts = cells.map(function (k2) { var p2 = k2.split(','); return { x: L.px0 + (+p2[0]) * TS + 8, y: L.py0 + (+p2[1]) * TS + 10 }; });
+      // keep only the corners
+      var out = [pts[0]];
+      for (var i = 1; i < pts.length - 1; i++) {
+        var A0 = out[out.length - 1], B0 = pts[i], C0 = pts[i + 1];
+        if (!((A0.x === B0.x && B0.x === C0.x) || (A0.y === B0.y && B0.y === C0.y))) out.push(B0);
+      }
+      if (pts.length > 1) out.push(pts[pts.length - 1]);
+      return (L.pathCache[key] = out);
     }
 
     // ---------------------------------------------------------------- town construction
     function buildTown(n, idx) {
-      var sys = PLANS[n.system] ? n.system : 'social_democracy';
-      var plan = PLANS[sys];
-      var r = mulberry(hash('town:' + n.id + ':' + sys));
-      var T = { id: n.id, sys: sys, items: [], flat: [], homes: [], works: [], dirt: {}, idx: idx };
-      function cell(c, rw) { T.dirt[c + ',' + rw] = 1; }
-      var c, rw;
-      // plaza (rows 9..12, cols 2..15) and paths
-      for (c = 2; c <= 15; c++) for (rw = 9; rw <= 12; rw++) cell(c, rw);
-      for (c = 8; c <= 9; c++) for (rw = 13; rw <= 17; rw++) cell(c, rw);
-      for (c = 1; c <= 16; c++) for (rw = 18; rw <= 19; rw++) cell(c, rw);
-      T.plaza = { x0: 36, y0: 148, x1: 252, y1: 204 };
-      T.lane = 306;
-      T.junction = 144;
-      T.hallDoor = { x: 144, y: 150 };
-      T.dock = { x: 152, y: 366 };
-      T.protest = { x0: 70, y0: 166, x1: 222, y1: 202 };
-      T.wealth = { x0: 214, y0: 160, x1: 250, y1: 200 };
-      // hall
-      T.items.push({ spr: 'bld.hall', x: 7 + 96, y: 144, sortY: 144 });
-      // landmark slot
-      var Lname = plan.L[0], Ls = sizeOf(Lname);
-      var Lx = Math.min(TOWN_W - 2 - Ls[0], 200 + Math.max(0, Math.floor((86 - Ls[0]) / 2)));
-      T.items.push({ spr: Lname, x: Lx + Ls[0] / 2, y: 144, sortY: 144 });
-      T.works.push({ x: Math.round(Lx + Ls[0] / 2), y: 152 });
-      // front slots
-      var slots = [2, 66, 158, 222];
-      var homeVar = hash(n.id) % 4;
-      plan.S.forEach(function (s, i) {
-        var name = s[0] === 'home' ? HOMES[(homeVar + i) % 4] : s[0];
-        if (plan.grey && s[0] === 'home') name = 'bld.home5';
-        var sz = sizeOf(name), sx = slots[i] + Math.floor((64 - sz[0]) / 2);
-        T.items.push({ spr: name, x: sx + sz[0] / 2, y: 288, sortY: 288 });
-        var door = (A.meta[name] && A.meta[name].door) ? sx + A.meta[name].door[0] : sx + sz[0] / 2;
-        (s[1] === 'home' ? T.homes : T.works).push({ x: Math.round(door), y: 294 });
+      var sys = PLANS[n.system] ? n.system : 'social_democracy', plan = PLANS[sys], key = keyOf(n, idx);
+      var T = { id: n.id, sys: sys, key: key, emblem: emblemOf(n, idx), items: [], homes: [], works: [], idx: idx, hallX: plan.hall };
+      var hx = plan.hall;
+      T.items.push({ spr: 'bld.hall.' + key, x: hx, y: 96 });
+      plan.back.concat(plan.front).forEach(function (b) {
+        var name = b[0];
+        if (/^house\./.test(name)) name = 'bld.house.' + key + '.' + name.split('.')[1];
+        if (name === 'bld.block') name = 'bld.block.' + key;
+        T.items.push({ spr: name, x: b[1], y: b[2] });
+        if (/^bld\.house|bld\.block/.test(name)) T.homes.push({ x: b[1] + (/block/.test(name) ? 0 : 10), y: b[2] + 1 });
+        else if (/^bld\./.test(name) && b[2] > 120) T.works.push({ x: b[1] < 104 ? b[1] + 24 : b[1] - 24, y: 132 });
+        else if (name === 'bld.depot') T.works.push({ x: b[1] - 14, y: b[2] + 2 });
       });
-      if (!T.homes.length) T.homes.push({ x: 40, y: 294 });
-      // plaza furniture
-      T.items.push({ spr: 'fx.fountain', x: 74, y: 196, sortY: 196, anim: true });
-      T.items.push({ spr: 'prop.lamp', x: 18, y: 172, sortY: 172 });
-      T.items.push({ spr: 'prop.lamp', x: 270, y: 172, sortY: 172 });
-      T.items.push({ spr: 'prop.bench', x: 196, y: 214, sortY: 202 });
-      if (plan.rich || sys === 'market_socialism') {
-        T.items.push({ spr: 'prop.statue', x: 236, y: 196, sortY: 196 });
-      } else {
-        T.items.push({ spr: 'prop.topiary', x: 236, y: 192, sortY: 192 });
-      }
-      if (plan.rich) T.items.push({ spr: 'prop.atm', x: 18, y: 222, sortY: 222 });
-      else T.items.push({ spr: 'prop.fbush', x: 16, y: 210, sortY: 210 });
-      T.items.push({ spr: 'prop.shrub', x: 272, y: 214, sortY: 214 });
-      // a tree behind a low landmark building
-      var trees = ['prop.tree1', 'prop.tree2', 'prop.tree3', 'prop.tree4'];
-      if (Ls[1] <= 80) T.items.push({ spr: trees[(hash(n.id) >> 3) % 4], x: Lx + Ls[0] / 2 + 8, y: 144 - Ls[1] + 20, sortY: 144 - Ls[1] });
-      T.flat.push({ spr: 'prop.flowers1', x: 22, y: 150 });
-      T.flat.push({ spr: 'prop.flowers2', x: 266, y: 152 });
-      // dock: jetty planks down the cliff into the water
-      T.jetty = [[144, 326], [144, 342], [144, 358]];
+      if (!T.homes.length) T.homes.push({ x: 40, y: 100 });
+      T.works.push({ x: hx, y: 100 });
+      T.plaza = { x0: 50, y0: 102, x1: 158, y1: 136 };
+      T.protest = { x0: hx - 34, y0: 102, x1: hx + 30, y1: 120 };
+      T.wealth = { x0: 140, y0: 100, x1: 170, y1: 112 };
+      T.flag = { x: hx + 30, y: 114 };
+      T.gov = { x: hx + 20, y: 117 };
+      T.rich = !!plan.rich;
       return T;
     }
 
+    // ---------------------------------------------------------------- terrain drawing
     function autotile(g, cells, block, ox, oy) {
       var f = fr(block);
       if (!f) return;
@@ -366,75 +494,81 @@
         }
       }
     }
-    function island(g, ox, oy, tw, th) {
+    function plateau(g, ox, oy, tw, th) {
       var f = fr('ter.island');
       if (!f) return;
       for (var c = 0; c < tw; c++) {
         var sc = c === 0 ? 0 : c === tw - 1 ? 2 : 1;
-        for (var r = 0; r < th; r++) {
-          var sr = r === 0 ? 0 : r >= th - 3 ? r - (th - 3) + 2 : 1;
+        for (var r = 0; r <= th; r++) {
+          var sr = r === 0 ? 0 : r === th - 1 ? 2 : r === th ? 4 : 1;
           g.drawImage(IMG, f[0] + sc * 16, f[1] + sr * 16, 16, 16, ox + c * 16, oy + r * 16, 16, 16);
         }
       }
     }
-    function renderGround(T) {
-      var c = canvas(TOWN_W, LY + TOWN_H + 24), g = c.getContext('2d');
+    // static ground: plateau, territory tints, roads, plazas. Re-rendered when a town falls.
+    function renderGround(L, ns) {
+      var c = canvas(L.w, L.h), g = c.getContext('2d');
       g.imageSmoothingEnabled = false;
-      island(g, 0, LY, TW, TH - 1);
-      autotile(g, T.dirt, 'ter.dirt', 0, 0);
-      // herringbone paving inset on the plaza
+      plateau(g, L.px0, L.py0, L.PC, L.PR);
+      // territories
+      ns.forEach(function (n, i) {
+        var t = L.towns[n.id], T = R.towns[n.id];
+        if (!t || !T) return;
+        var dead = n.alive === false, col = dead ? paint('grey') : paint(T.key);
+        var q = t.terr;
+        g.globalAlpha = dead ? 0.28 : 0.26;
+        g.fillStyle = dead ? '#3a3a40' : col.mid;
+        g.fillRect(q.x, q.y, q.w, q.h);
+        g.globalAlpha = dead ? 0.5 : 0.95;
+        g.fillStyle = dead ? '#6b6b72' : col.dark;
+        // dashed border, 2 px on, 2 px off, crisp
+        for (var x = q.x; x < q.x + q.w; x += 4) { g.fillRect(x, q.y, 2, 1); g.fillRect(x, q.y + q.h - 1, 2, 1); }
+        for (var y = q.y; y < q.y + q.h; y += 4) { g.fillRect(q.x, y, 1, 2); g.fillRect(q.x + q.w - 1, y, 1, 2); }
+        g.globalAlpha = 1;
+      });
+      // roads
+      autotile(g, L.roads, 'ter.dirt', L.px0, L.py0);
+      // town plazas: paving from the hall to the gate, trimmed in the nation colour
       var hb = fr('ter.herring');
-      if (hb) {
-        for (var y = 9 * 16 + 4; y < 13 * 16 - 4; y += 32) for (var x = 2 * 16 + 4; x < 16 * 16 - 4; x += 32) {
-          var w = Math.min(32, 16 * 16 - 4 - x), h = Math.min(32, 13 * 16 - 4 - y);
-          g.drawImage(IMG, hb[0], hb[1], w, h, x, y, w, h);
+      ns.forEach(function (n) {
+        var t = L.towns[n.id], T = R.towns[n.id];
+        if (!t || !T || !hb) return;
+        var x0 = t.x + 48, y0 = t.y + 96, x1 = t.x + 160, y1 = t.y + 140;
+        for (var yy = y0; yy < y1; yy += 32) for (var xx = x0; xx < x1; xx += 32) {
+          var w = Math.min(32, x1 - xx), h = Math.min(32, y1 - yy);
+          g.drawImage(IMG, hb[0], hb[1], w, h, xx, yy, w, h);
         }
-      }
-      T.flat.forEach(function (it) { spr(g, it.spr, it.x, it.y); });
-      T.jetty.forEach(function (p) { spr(g, 'prop.jetty', p[0] + 8, p[1] + 16); });
-      spr(g, 'prop.jettyend', T.jetty[2][0] + 8, T.jetty[2][1] + 26);
+        var gx = t.x + 96;
+        g.drawImage(IMG, hb[0], hb[1], 16, 4, gx, y1, 16, 4);
+        var col = n.alive === false ? paint('grey') : paint(T.key);
+        g.fillStyle = col.mid;
+        g.fillRect(x0, y0 - 1, x1 - x0, 1); g.fillRect(x0, y1, gx - x0, 1); g.fillRect(gx + 16, y1, x1 - gx - 16, 1);
+        g.fillRect(x0 - 1, y0, 1, y1 - y0 + 1); g.fillRect(x1, y0, 1, y1 - y0 + 1);
+      });
       return c;
     }
-    function greyCopy(c) {
-      var o = canvas(c.width, c.height), g = o.getContext('2d');
-      g.drawImage(c, 0, 0);
-      try {
-        var d = g.getImageData(0, 0, o.width, o.height), p = d.data;
-        for (var i = 0; i < p.length; i += 4) { var l = (p[i] * 0.3 + p[i + 1] * 0.55 + p[i + 2] * 0.15) * 0.72 + 18; p[i] = l; p[i + 1] = l * 0.98; p[i + 2] = l * 1.03; }
-        g.putImageData(d, 0, 0);
-      } catch (e) { /* tainted: keep colour */ }
-      return o;
-    }
 
-    // commons islet: ground drawn per frame from its stock (cheap: 7x6 tiles)
-    function drawCommons(g, C, ratio, now) {
-      island(g, C.x, C.y, COM_W, COM_H);
-      // pond grows with the stock
-      var cells = {}, cx = 4, cy = 2;
-      var rad = 0.5 + ratio * 1.6;
-      for (var c = 2; c < COM_W - 2; c++) for (var r = 1; r < COM_H - 3; r++) {
-        var dx = (c + 0.5 - cx) / 1.4, dy = (r + 0.5 - (cy + 0.5));
-        if (Math.sqrt(dx * dx + dy * dy) <= rad) cells[c + ',' + r] = 1;
+    // shared forest and lake: the pond shrinks with the stock, the dried bed shows as mud
+    function commonsGround(L, ratio) {
+      var C = L.commons, c = canvas(C.w, C.h), g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      var pond = {}, mud = {}, cx = C.cw / 2, cy = C.ch / 2, sx = C.cw >= 10 ? 1.55 : 1.2;
+      var rad = 0.55 + ratio * 1.9, full = 2.45;
+      for (var cc = 1; cc < C.cw - 1; cc++) for (var r = 1; r < C.ch - 1; r++) {
+        var dx = (cc + 0.5 - cx) / sx, dy = (r + 0.5 - cy), d = Math.sqrt(dx * dx + dy * dy);
+        if (d <= rad) pond[cc + ',' + r] = 1;
+        else if (d <= full) mud[cc + ',' + r] = 1;
       }
-      if (ratio > 0.04 && !Object.keys(cells).length) { cells['3,2'] = 1; cells['4,2'] = 1; }
-      autotile(g, cells, 'ter.pond', C.x, C.y);
-      // woodland on the rim: shrubs while healthy, stumps when depleted
-      var spots = [[12, 34], [116, 34], [14, 62], [114, 62], [34, 74], [94, 74], [64, 78]];
-      var alive = Math.round(ratio * spots.length + 0.2);
-      var list = spots.map(function (p, i) { return { x: C.x + p[0], y: C.y + p[1], i: i }; });
-      list.sort(function (a, b) { return a.y - b.y; });
-      list.forEach(function (p) {
-        if (p.i < alive) spr(g, p.i % 2 ? 'prop.fbush' : 'prop.shrub', p.x, p.y);
-        else spr(g, 'prop.stump', p.x, p.y);
-      });
+      if (ratio > 0.03 && !Object.keys(pond).length) { pond[Math.floor(cx - 1) + ',3'] = 1; pond[Math.floor(cx) + ',3'] = 1; }
+      if (ratio < 0.97) autotile(g, mud, 'ter.dirt', 0, 0);
+      autotile(g, pond, 'ter.pond', 0, 0);
+      return c;
     }
+    var FOREST = [[14, 30], [44, 20], [80, 16], [116, 20], [146, 30], [10, 62], [150, 62], [14, 98], [46, 108], [80, 110], [114, 108], [146, 98], [30, 46], [130, 46]];
 
     // ---------------------------------------------------------------- agents
     function townOf(nid) { return R.towns[nid]; }
-    function pickSprite(c) {
-      var pool = CLASS_POOL[c.cls] || CLASS_POOL.worker;
-      return pool[hash('look:' + c.id) % pool.length];
-    }
+    function pickSprite(c) { var pool = CLASS_POOL[c.cls] || CLASS_POOL.worker; return pool[hash('look:' + c.id) % pool.length]; }
     function roleOf(c, n) {
       if (n && n.alive === false) return 'gone';
       if (c.protesting) return 'protest';
@@ -443,91 +577,51 @@
       return 'idle';
     }
     function rndIn(rect, rnd) { return { x: rect.x0 + rnd() * (rect.x1 - rect.x0), y: rect.y0 + rnd() * (rect.y1 - rect.y0) }; }
-    function level(p, T) { return p.y > 236 ? 'low' : 'up'; }
-    function route(T, a, b, jit) {
-      var pts = [], la = level(a, T), lb = level(b, T), jx = T.junction + 8 + jit;
-      jit = jit * 2;
-      if (la === 'low' && lb === 'low') {
-        if (Math.abs(a.x - b.x) > 6) { pts.push({ x: a.x, y: T.lane + jit * 0.4 }); pts.push({ x: b.x, y: T.lane + jit * 0.4 }); }
-        pts.push(b);
-      } else if (la === 'up' && lb === 'up') {
-        pts.push(b);
-      } else if (la === 'low') {
-        pts.push({ x: a.x, y: T.lane + jit * 0.4 }, { x: jx, y: T.lane + jit * 0.4 }, { x: jx, y: 200 }, b);
-      } else {
-        pts.push({ x: jx, y: 200 }, { x: jx, y: T.lane + jit * 0.4 }, { x: b.x, y: T.lane + jit * 0.4 }, b);
-      }
-      return pts;
-    }
     function homeOf(ag, T) { return T.homes[hash('home:' + ag.cid) % T.homes.length]; }
     function workOf(ag, T) { return T.works[hash('work:' + ag.cid) % T.works.length]; }
-    function restSpot(ag, T) {
-      var rnd = mulberry(hash('rest:' + ag.cid) + (ag.seq * 7919));
+    function localSpot(ag, T, rnd) {
       if (ag.role === 'protest') return rndIn(T.protest, rnd);
       if (ag.role === 'elite') return rndIn(T.wealth, rnd);
       if (ag.role === 'work') return rnd() < 0.5 ? homeOf(ag, T) : workOf(ag, T);
-      // idle: loiter on the plaza edges or the lane
-      var q = rnd();
-      if (q < 0.45) return rndIn({ x0: 100, y0: 184, x1: 182, y1: 206 }, rnd);
-      if (q < 0.85) return rndIn({ x0: 36, y0: 200, x1: 250, y1: 208 }, rnd);
-      return { x: 20 + rnd() * 248, y: T.lane - 6 + rnd() * 14 };
+      return rndIn(T.plaza, rnd);
     }
+    function toWorld(nid, p) { var P = R.L && R.L.towns[nid]; return P ? { x: P.x + p.x, y: P.y + p.y } : { x: p.x, y: p.y }; }
     function ensureAgent(c, n) {
       var ag = R.agents[c.id];
-      if (!ag) {
-        ag = R.agents[c.id] = { cid: c.id, nid: n.id, x: 0, y: 0, path: [], wait: 0, dir: 'down', moving: false, inside: false,
-          seq: 0, rnd: mulberry(hash('ag:' + c.id)), role: '', key: pickSprite(c), placed: false, out: false };
-      }
+      if (!ag) ag = R.agents[c.id] = { cid: c.id, nid: n.id, x: 0, y: 0, path: [], wait: 0, dir: 'down', moving: false, inside: false,
+        seq: 0, rnd: mulberry(hash('ag:' + c.id)), role: '', key: pickSprite(c), placed: false };
       return ag;
     }
     function place(ag, T) {
-      var p = restSpot(ag, T);
+      var p = toWorld(ag.nid, localSpot(ag, T, mulberry(hash('rest:' + ag.cid))));
       ag.x = p.x; ag.y = p.y; ag.path = []; ag.placed = true;
       ag.wait = ag.rnd() * 3;
-      if (ag.role === 'work' && !ag.follower && ag.rnd() < 0.6) { ag.inside = true; ag.wait = 1 + ag.rnd() * 9; }
+      if (ag.role === 'work' && !ag.follower && ag.rnd() < 0.5) { ag.inside = true; ag.wait = 1 + ag.rnd() * 8; }
     }
-    function plan(ag, T, c) {
+    function plan(ag, T) {
       ag.seq++;
       var rnd = ag.rnd, target, dwell;
       ag.inside = false;
-      if (ag.role === 'protest') { target = rndIn(T.protest, rnd); dwell = 1.6 + rnd() * 3; }
+      if (ag.role === 'protest') { target = rndIn(T.protest, rnd); dwell = 1.4 + rnd() * 3; }
       else if (ag.role === 'elite') { target = rndIn(T.wealth, rnd); dwell = 4 + rnd() * 7; }
-      else if (ag.role === 'work') {
-        ag.toWork = !ag.toWork;
-        target = ag.toWork ? workOf(ag, T) : homeOf(ag, T);
-        dwell = 8 + rnd() * 10;
-        ag.enter = true;
-      } else {
-        target = restSpot(ag, T);
-        dwell = 3 + rnd() * 6;
-      }
-      var jit = ((hash(ag.cid) % 13) - 6);
-      ag.path = route(T, { x: ag.x, y: ag.y }, { x: target.x + (ag.role === 'work' ? 0 : 0), y: target.y }, jit);
+      else if (ag.role === 'work') { ag.toWork = !ag.toWork; target = ag.toWork ? workOf(ag, T) : homeOf(ag, T); dwell = 7 + rnd() * 9; ag.enter = true; }
+      else { target = rndIn(T.plaza, rnd); dwell = 3 + rnd() * 6; }
+      ag.path = [toWorld(ag.nid, target)];
       ag.dwell = dwell;
     }
-
-    function stepAgent(ag, dt, c, n) {
+    function face(ag, dx, dy) { ag.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'); }
+    function stepAgent(ag, dt, c) {
       var T = townOf(ag.nid);
       if (!T) return;
-      if (ag.wait > 0) {
-        ag.wait -= dt;
-        ag.moving = false;
-        if (ag.wait > 0) return;
-        if (ag.inside) { ag.inside = false; }
-      }
-      if (!ag.path.length) {
-        plan(ag, T, c);
-        if (!ag.path.length) { ag.wait = 2; return; }
-      }
-      var p = ag.path[0];
-      var dx = p.x - ag.x, dy = p.y - ag.y, d = Math.hypot(dx, dy);
-      var sp = (c && num(c.mood, 0.6) < 0.3) ? 13 : 22;
-      if (ag.role === 'protest') sp = 26;
+      if (ag.wait > 0) { ag.wait -= dt; ag.moving = false; if (ag.wait > 0) return; ag.inside = false; }
+      if (!ag.path.length) { plan(ag, T); if (!ag.path.length) { ag.wait = 2; return; } }
+      var p = ag.path[0], dx = p.x - ag.x, dy = p.y - ag.y, d = Math.hypot(dx, dy);
+      var sp = (c && num(c.mood, 0.6) < 0.3) ? 12 : 20;
+      if (ag.role === 'protest') sp = 24;
       if (d <= sp * dt) {
         ag.x = p.x; ag.y = p.y; ag.path.shift();
         if (!ag.path.length) {
-          ag.moving = false;
-          ag.wait = ag.dwell || 2;
+          ag.moving = false; ag.wait = ag.dwell || 2;
           if (ag.enter) { ag.inside = !ag.follower; ag.enter = false; if (ag.follower) ag.wait = 2 + ag.rnd() * 2; }
           ag.dir = ag.role === 'protest' ? 'up' : (ag.inside ? 'up' : 'down');
         }
@@ -535,21 +629,21 @@
       }
       ag.moving = true;
       ag.x += dx / d * sp * dt; ag.y += dy / d * sp * dt;
-      ag.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+      face(ag, dx, dy);
     }
 
     // ---------------------------------------------------------------- state sync
     function natList() { var s = env.state(); return (s && Array.isArray(s.nations)) ? s.nations : []; }
-    function syncAgents(initial) {
-      var seen = {};
+    function syncAgents() {
+      var seen = {}, now = performance.now();
       natList().forEach(function (n) {
         (n.citizens || []).forEach(function (c) {
           seen[c.id] = 1;
-          var ag = ensureAgent(c, n), role = roleOf(c, n), now = performance.now();
+          var ag = ensureAgent(c, n), role = roleOf(c, n);
           ag.follower = !!c.isFollower;
           if (ag.travel) return;
           if (ag.nid !== n.id) { ag.nid = n.id; ag.placed = false; }
-          // protests are sticky for a few seconds so crowds reach the square even at 16x
+          // protests are sticky for a few seconds so crowds reach the hall even at 16x
           if (role === 'protest') ag.protestUntil = now + 7000;
           else if (role !== 'gone' && ag.protestUntil > now) role = 'protest';
           if (ag.role !== role) {
@@ -558,7 +652,7 @@
             if (was && ag.placed && role === 'protest') { ag.path = []; ag.wait = Math.min(ag.wait, 0.2 + ag.rnd() * 0.8); ag.inside = false; ag.enter = false; }
           }
           var T = townOf(n.id);
-          if (T && !ag.placed) place(ag, T);
+          if (T && !ag.placed && R.L) place(ag, T);
         });
       });
       for (var id in R.agents) if (!seen[id] && !R.agents[id].travel) delete R.agents[id];
@@ -566,110 +660,57 @@
 
     R.onState = function () {
       if (!R.L) return;
-      syncAgents(false);
-      // governor emote triggers
+      syncAgents();
       natList().forEach(function (n) {
-        var g = n.governor || {}, prev = R.lastGov[n.id];
-        var bribes = num(g.bribesTaken, 0);
-        if (prev && bribes > prev.bribes) R.lastGov[n.id].bribeAt = performance.now();
-        R.lastGov[n.id] = { bribes: bribes, bribeAt: prev ? prev.bribeAt : 0 };
+        var g = n.governor || {}, prev = R.lastGov[n.id], bribes = num(g.bribesTaken, 0);
+        R.lastGov[n.id] = { bribes: bribes, bribeAt: prev ? (bribes > prev.bribes ? performance.now() : prev.bribeAt) : 0 };
       });
     };
 
+    var MAX_TRAVEL = 36;
     R.onMove = function (cid, from, to) {
       if (env.reduced() || !R.L) return;
-      var ag = R.agents[cid];
-      var A0 = townOf(from), B0 = to ? townOf(to) : null;
-      if (!A0) return;
-      if (!ag || ag.travel) return;
-      ag.inside = false; ag.wait = 0; ag.enter = false;
-      if (!B0) {
-        // leaving the map: walk down the jetty and fade out
-        ag.travel = { phase: 'leave', t0: performance.now() };
-        ag.path = route(A0, { x: ag.x, y: ag.y }, { x: A0.dock.x - 4, y: 322 }, 0);
-        ag.path.push({ x: A0.dock.x - 4, y: 360 });
-        return;
-      }
+      var ag = R.agents[cid], L = R.L;
+      if (!ag || ag.travel || !L.towns[from]) return;
       var busy = 0;
       for (var k in R.agents) if (R.agents[k].travel) busy++;
-      if (busy >= 10) {
-        // every boat is out: the newcomer simply steps off the jetty at the destination
-        ag.nid = to; ag.x = B0.dock.x - 4; ag.y = 360; ag.placed = true; ag.role = '';
-        ag.path = [{ x: B0.dock.x - 4, y: 322 }];
-        return;
-      }
-      ag.travel = { phase: 'walk', from: from, to: to };
-      ag.inside = false; ag.wait = 0;
-      ag.path = route(A0, { x: ag.x, y: ag.y }, { x: A0.dock.x - 4, y: 322 }, 0);
-      ag.path.push({ x: A0.dock.x - 4, y: 360 });
-    };
-
-    function boatRoute(fromId, toId) {
-      var L = R.L, a = L.towns[fromId], b = L.towns[toId];
-      var ax = a.x + 152, ay = a.y + TOWN_H + 15, bx = b.x + 152, by = b.y + TOWN_H + 15;
-      var pts = [{ x: ax, y: ay }];
-      if (a.x === b.x && a.row !== b.row) {
-        // one column: out to the channel beside the islands, along it, and back in under the other jetty
-        var ch = a.x + TOWN_W + Math.min(SIDE, GX) / 2 + 4;
-        pts.push({ x: ch, y: ay }, { x: ch, y: by });
-      } else if (a.row === b.row) {
-        pts.push({ x: bx, y: ay });
+      var gate = L.gateW[from];
+      if (busy >= MAX_TRAVEL) { if (to && L.towns[to]) { ag.nid = to; ag.placed = false; } return; }
+      ag.inside = false; ag.enter = false;
+      var leaving = 0;
+      for (k in R.agents) if (R.agents[k].travel && R.agents[k].travel.from === from) leaving++;
+      ag.wait = Math.min(6, leaving * 0.55);                      // a little column, not a blob
+      var jit = ((hash(cid) % 7) - 3);
+      var path = [{ x: gate.x + jit, y: gate.y - 10 }, { x: gate.x + jit * 0.5, y: gate.y }];
+      if (to && L.towns[to]) {
+        var road = roadPath(L, from, to), g2 = L.gateW[to];
+        if (road) road.forEach(function (p) { path.push({ x: p.x + jit * 0.5, y: p.y + jit * 0.4 }); });
+        else path.push({ x: g2.x, y: g2.y });
+        path.push({ x: g2.x + jit, y: g2.y - 12 });
+        var T2 = townOf(to);
+        if (T2) path.push(toWorld(to, rndIn(T2.plaza, ag.rnd)));
+        ag.travel = { from: from, to: to };
       } else {
-        // channel beside the destination island, on the side facing the start
-        var side = ax < b.x + TOWN_W / 2 ? b.x - GX / 2 : b.x + TOWN_W + GX / 2;
-        var mid = a.row < b.row ? b.y - L.gy / 2 : a.y - L.gy / 2;
-        if (a.row < b.row) { pts.push({ x: side, y: ay }); pts.push({ x: side, y: by }); }
-        else { pts.push({ x: ax < side ? a.x - GX / 2 : a.x + TOWN_W + GX / 2, y: ay }); pts.push({ x: ax < side ? a.x - GX / 2 : a.x + TOWN_W + GX / 2, y: mid }); pts.push({ x: side, y: mid }); pts.push({ x: side, y: by }); }
+        // leaving the map: down the road to the nearest coast and away
+        var ex = gate.x, ey = L.py0 + L.PR * TS + SKIRT + 20;
+        path.push({ x: ex + jit, y: Math.min(ey, gate.y + 40) }, { x: ex + jit, y: ey });
+        ag.travel = { from: from, to: null, t0: performance.now() };
       }
-      pts.push({ x: bx, y: by });
-      return pts;
-    }
-
-    function moveAlong(ag, dt, sp) {
-      var p = ag.path[0], dx = p.x - ag.x, dy = p.y - ag.y, d = Math.hypot(dx, dy);
-      if (d <= sp * dt) { ag.x = p.x; ag.y = p.y; ag.path.shift(); }
-      else { ag.x += dx / d * sp * dt; ag.y += dy / d * sp * dt; ag.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'); }
-      ag.moving = true;
-    }
-    function stepTravel(ag, dt, now) {
-      var tr = ag.travel, T = townOf(ag.nid);
-      if (tr.phase === 'leave') {
-        if (!ag.path.length || now - tr.t0 > 9000) { delete R.agents[ag.cid]; return; }
-        moveAlong(ag, dt, 30);
+      ag.path = path;
+    };
+    function stepTravel(ag, dt) {
+      if (ag.wait > 0) { ag.wait -= dt; ag.moving = false; return; }
+      if (!ag.path.length) {
+        var tr = ag.travel;
+        delete ag.travel;
+        if (!tr.to || !R.L.towns[tr.to]) { delete R.agents[ag.cid]; return; }
+        ag.nid = tr.to; ag.role = ''; ag.wait = 0.5; ag.placed = true;
         return;
       }
-      if (tr.phase === 'walk') {
-        if (!T) { delete R.agents[ag.cid]; return; }
-        if (ag.path.length) { moveAlong(ag, dt, 30); return; }
-        if (!R.L.towns[tr.to] || !R.L.towns[tr.from]) { tr.phase = 'done'; }
-        else {
-          tr.phase = 'boat';
-          var pts = boatRoute(tr.from, tr.to);
-          R.boats.push({ ag: ag, pts: pts, x: pts[0].x, y: pts[0].y, dir: pts[1].x >= pts[0].x ? 'R' : 'L', seg: 1 });
-          return;
-        }
-      }
-      if (tr.phase === 'done') {
-        var B = townOf(tr.to);
-        delete ag.travel;
-        if (!B) { delete R.agents[ag.cid]; return; }
-        ag.nid = tr.to; ag.x = B.dock.x - 4; ag.y = 360; ag.placed = true; ag.inside = false; ag.wait = 0;
-        ag.role = '';
-        ag.path = [{ x: B.dock.x - 4, y: 322 }];
-      }
-    }
-    function stepBoats(dt) {
-      var keep = [];
-      R.boats.forEach(function (b) {
-        var p = b.pts[b.seg];
-        if (!p) { b.ag.travel.phase = 'done'; return; }
-        var dx = p.x - b.x, dy = p.y - b.y, d = Math.hypot(dx, dy), sp = 64;
-        if (Math.abs(dx) > 1) b.dir = dx > 0 ? 'R' : 'L';
-        if (d <= sp * dt) { b.x = p.x; b.y = p.y; b.seg++; }
-        else { b.x += dx / d * sp * dt; b.y += dy / d * sp * dt; }
-        keep.push(b);
-      });
-      R.boats = keep;
+      var p = ag.path[0], dx = p.x - ag.x, dy = p.y - ag.y, d = Math.hypot(dx, dy), sp = 30;
+      if (d <= sp * dt) { ag.x = p.x; ag.y = p.y; ag.path.shift(); }
+      else { ag.x += dx / d * sp * dt; ag.y += dy / d * sp * dt; face(ag, dx, dy); }
+      ag.moving = true;
     }
 
     R.onEvent = function (ev) {
@@ -679,9 +720,17 @@
         var tgt = (ev.data && ev.data.targetId) || ev.nationId;
         if (R.L.towns[tgt]) R.fx.push({ kind: 'strike', nid: tgt, t0: now });
       }
-      if (/^(debt_crisis|default|hyperinflation|recession|shortage|general_strike|coup)$/.test(ev.type) && ev.nationId) {
-        R.crisis[ev.nationId] = now;
-      }
+      if (/^(debt_crisis|default|hyperinflation|recession|shortage|general_strike|coup)$/.test(ev.type) && ev.nationId) R.crisis[ev.nationId] = now;
+      var tag = tagFor(ev);
+      if (!tag) return;
+      var where = ev.type === 'nuclear_strike' ? ((ev.data && ev.data.targetId) || ev.nationId) : ev.nationId;
+      if (!where && /^commons_/.test(ev.type)) where = '__commons';
+      if (!where || (where !== '__commons' && !R.L.towns[where])) return;
+      var sev = clamp(num(ev.severity, 1), 1, 3);
+      var prev = R.tags[where];
+      // a quiet tag does not cut short a louder one
+      if (prev && now - prev.t0 < 1400 && prev.sev > sev) return;
+      R.tags[where] = { text: tag, t0: now, sev: sev };
     };
     R.ping = function (nid) {
       var now = performance.now();
@@ -689,50 +738,112 @@
       R.pings.push({ nid: nid, t0: now });
       if (R.pings.length > 5) R.pings.shift();
     };
-    R.reset = function () { R.agents = {}; R.boats = []; R.fx = []; R.pings = []; R.crisis = {}; R.lastGov = {}; R.layoutKey = ''; R.L = null; };
+    // camera: ease to a closer whole-number zoom on the event's town, hold, ease back to the whole field
+    var CINE_IN = 700, CINE_HOLD = 3600, CINE_OUT = 800;
+    R.cinematic = function (ev) {
+      if (!ev || env.reduced() || !R.L || R.L.mode !== 'field') return;
+      var nid = ev.type === 'nuclear_strike' ? ((ev.data && ev.data.targetId) || ev.nationId) : ev.nationId;
+      if (!nid || !R.L.towns[nid]) return;
+      var now = performance.now();
+      if (R.cine && now - R.cine.t0 < CINE_IN + CINE_HOLD * 0.5) return;  // do not yank between towns
+      R.cine = { nid: nid, t0: now };
+    };
+    R.reset = function () { R.agents = {}; R.fx = []; R.pings = []; R.crisis = {}; R.lastGov = {}; R.tags = {}; R.cine = null; R.layoutKey = ''; R.L = null; R.groundKey = ''; R.comKey = ''; };
     R.invalidate = function () { R.layoutKey = ''; };
 
     // ---------------------------------------------------------------- drawing
     function ensureLayout(W, H, dpr) {
       var ns = natList();
-      var cfgW = (env.config() && env.config().world) || {};
       var focus = (env.focus && env.focus()) || '';
-      var key = [W, H, dpr, ns.map(function (n) { return n.id + ':' + n.system; }).join(','), cfgW.commons !== false, focus].join('|');
+      var key = [W, H, dpr, ns.map(function (n) { return n.id + ':' + n.system + ':' + (n.colorKey || ''); }).join(','), focus ? 'story' : ''].join('|');
       if (key === R.layoutKey && R.L) return R.L;
-      var oldL = R.L;
       R.layoutKey = key;
-      R.L = computeLayout(W, H, dpr, ns, cfgW.commons !== false, focus);
+      R.L = computeLayout(W, H, dpr, ns, focus);
       var towns = {};
       ns.forEach(function (n, i) {
         var prev = R.towns[n.id];
-        var T = prev && prev.sys === (PLANS[n.system] ? n.system : 'social_democracy') ? prev : buildTown(n, i);
-        if (!T.ground) T.ground = renderGround(T);
-        towns[n.id] = T;
+        towns[n.id] = prev && prev.sys === (PLANS[n.system] ? n.system : 'social_democracy') && prev.key === keyOf(n, i) ? prev : buildTown(n, i);
       });
       R.towns = towns;
       R.frame = canvas(R.L.w, R.L.h);
       R.fctx = R.frame.getContext('2d');
       R.fctx.imageSmoothingEnabled = false;
-      R.ripples = null;
-      if (!oldL) syncAgents(true);
-      else syncAgents(false);
+      R.groundKey = ''; R.comKey = ''; R.ripples = null; R.cine = null;
+      for (var id in R.agents) { var ag = R.agents[id]; delete ag.travel; ag.placed = false; ag.path = []; }
+      syncAgents();
       return R.L;
     }
-
-    function ripples(L, tok) {
+    function ripples(L) {
       if (R.ripples) return R.ripples;
       var rnd = mulberry(hash('waves:' + L.w + 'x' + L.h)), list = [];
-      for (var i = 0; i < Math.round(L.w * L.h / 5200); i++) list.push({ x: rnd() * L.w, y: rnd() * L.h, w: 3 + Math.floor(rnd() * 4), ph: rnd() * 6.28 });
+      var x0 = L.px0 - 4, y0 = L.py0 - 4, x1 = L.px0 + L.PC * TS + 4, y1 = L.py0 + L.PR * TS + SKIRT + 4;
+      for (var i = 0; i < Math.round(L.w * L.h / 2600); i++) {
+        var x = rnd() * L.w, y = rnd() * L.h;
+        if (x > x0 - 8 && x < x1 && y > y0 && y < y1) continue;
+        list.push({ x: x, y: y, w: 3 + Math.floor(rnd() * 4), ph: rnd() * 6.28 });
+      }
       R.ripples = list;
       return list;
     }
-    function insideAny(L, x, y) {
-      for (var id in L.towns) { var t = L.towns[id]; if (x > t.x - 4 && x < t.x + TOWN_W + 4 && y > t.y - 4 && y < t.y + TOWN_H + 26) return true; }
-      var C = L.commons;
-      return !!(C && x > C.x - 4 && x < C.x + C.w + 4 && y > C.y - 4 && y < C.y + C.h + 4);
-    }
 
     var EMO_MOOD = { calm: 'emo.note', pressured: 'emo.drop', scheming: 'emo.cash', defiant: 'emo.angry', panicked: 'emo.bang' };
+
+    function drawEmblem(g, emb, x, y, color, px) {
+      var bm = EMB[emb] || EMB.sun;
+      g.fillStyle = color;
+      for (var r = 0; r < 7; r++) for (var c = 0; c < 7; c++) if (bm[r].charAt(c) === '#') g.fillRect(x + c * px, y + r * px, px, px);
+    }
+    // flag on a pole: 2 px pole, 17 x 12 cloth that ripples, emblem in the middle. Down and grey when fallen.
+    function drawFlag(g, x, y, key, emb, now, still, dead) {
+      var H = 44, top = y - H;
+      g.fillStyle = '#3d4250'; g.fillRect(x - 1, top, 3, H);
+      g.fillStyle = '#c9ced8'; g.fillRect(x, top, 1, H - 1);
+      g.fillStyle = '#e8c35a'; g.fillRect(x - 1, top - 2, 3, 2);
+      g.fillStyle = '#2b2f38'; g.fillRect(x - 3, y - 1, 7, 2);
+      if (dead) {
+        g.fillStyle = '#55575e'; g.fillRect(x + 2, y - 14, 5, 12);
+        g.fillStyle = '#7a7c84'; g.fillRect(x + 2, y - 14, 5, 1);
+        return;
+      }
+      var col = paint(key), cw = 17, ch = 12, cx = x + 2, cy = top + 1, t = still ? 0 : now / 1000;
+      for (var c = 0; c < cw; c++) {
+        var off = Math.round(Math.sin(t * 5 - c * 0.55) * (c / cw) * 1.6);
+        g.fillStyle = col.dark; g.fillRect(cx + c, cy + off, 1, ch);
+        g.fillStyle = col.mid; g.fillRect(cx + c, cy + off + 1, 1, ch - 2);
+        // emblem column by column, so it ripples with the cloth
+        var bc = c - 5;
+        if (bc >= 0 && bc < 7) {
+          g.fillStyle = '#fff7e2';
+          var bm = EMB[emb] || EMB.sun;
+          for (var r = 0; r < 7; r++) if (bm[r].charAt(bc) === '#') g.fillRect(cx + c, cy + off + 3 + r - 1, 1, 1);
+        }
+      }
+      g.fillStyle = col.dark; g.fillRect(cx + cw - 1, cy + Math.round(Math.sin(t * 5 - (cw - 1) * 0.55) * 1.6), 1, ch);
+    }
+    // two short banners on the hall facade, in the nation colour
+    function drawBanners(g, x, y, key, dead) {
+      var col = dead ? paint('grey') : paint(key);
+      [x - 30, x + 23].forEach(function (bx) {
+        g.fillStyle = col.dark; g.fillRect(bx, y, 7, 14); g.fillRect(bx + 1, y + 14, 2, 2); g.fillRect(bx + 4, y + 14, 2, 2);
+        g.fillStyle = col.mid; g.fillRect(bx + 1, y + 1, 5, 12); g.fillRect(bx + 1, y + 13, 2, 2); g.fillRect(bx + 4, y + 13, 2, 2);
+        g.fillStyle = '#fff7e2'; g.fillRect(bx + 3, y + 4, 1, 5); g.fillRect(bx + 2, y + 6, 3, 1);
+      });
+    }
+    // protest placard held above the head, bobbing
+    function drawPlacard(g, x, y, ph, now, still) {
+      var bob = still ? 0 : (Math.sin(now / 180 + ph * 9) > 0 ? 1 : 0), px = Math.round(x + (ph < 0.5 ? -6 : 3)), py = Math.round(y - 36 - bob);
+      g.fillStyle = '#5a3d26'; g.fillRect(px + 3, py + 5, 1, 9);
+      g.fillStyle = '#2b2622'; g.fillRect(px, py, 8, 6);
+      g.fillStyle = '#f3ead6'; g.fillRect(px + 1, py + 1, 6, 4);
+      g.fillStyle = '#d24b45'; g.fillRect(px + 2, py + 2, 4, 1); g.fillRect(px + 2, py + 3, 3, 1);
+    }
+    // little suitcase in an emigrant's hand
+    function drawCase(g, x, y, dir) {
+      var sx = Math.round(x + (dir === 'left' ? -8 : dir === 'right' ? 4 : 5)), sy = Math.round(y - 11);
+      g.fillStyle = '#3b2a20'; g.fillRect(sx, sy, 5, 5);
+      g.fillStyle = '#9a6a3c'; g.fillRect(sx + 1, sy + 1, 3, 3);
+      g.fillStyle = '#3b2a20'; g.fillRect(sx + 1, sy - 1, 3, 1);
+    }
 
     R.draw = function (ctx, W, H, dpr, now) {
       var s = env.state();
@@ -741,118 +852,127 @@
       var dt = R.lastNow ? clamp((now - R.lastNow) / 1000, 0, 0.1) : 0;
       R.lastNow = now;
       var g = R.fctx, cfgW = (env.config() && env.config().world) || {};
-      var cid2c = {}, nById = {};
-      s.nations.forEach(function (n) { nById[n.id] = n; (n.citizens || []).forEach(function (c) { cid2c[c.id] = c; }); });
+      var cid2c = {}, nById = {}, idxOf = {};
+      s.nations.forEach(function (n, i) { nById[n.id] = n; idxOf[n.id] = i; (n.citizens || []).forEach(function (c) { cid2c[c.id] = c; }); });
 
       // simulate
       if (!still && dt > 0) {
         for (var id in R.agents) {
           var ag = R.agents[id];
-          if (ag.travel) { if (ag.travel.phase !== 'boat') stepTravel(ag, dt, now); continue; }
+          if (ag.travel) { stepTravel(ag, dt); continue; }
           var n0 = nById[ag.nid];
           if (!n0 || n0.alive === false) continue;
-          stepAgent(ag, dt, cid2c[id], n0);
+          stepAgent(ag, dt, cid2c[id]);
         }
-        stepBoats(dt);
       }
+
+      // ---- static ground (cached)
+      var gk = s.nations.map(function (n) { return n.alive === false ? 0 : 1; }).join('');
+      if (R.groundKey !== gk || !R.ground) { R.ground = renderGround(L, s.nations); R.groundKey = gk; }
+      var comRatio = 1;
+      if (s.commons) { var cap = num(s.commons.capacity, 100); comRatio = clamp(cap > 0 ? num(s.commons.stock, cap) / cap : 0, 0, 1); }
+      var showCom = !!L.commons && cfgW.commons !== false;
+      var ck = Math.round(comRatio * 20) + ':' + showCom;
+      if (showCom && R.comKey !== ck) { R.comCanvas = commonsGround(L, comRatio); R.comKey = ck; }
 
       // ---- world frame (1 px = 1 art px)
       g.setTransform(1, 0, 0, 1, 0, 0);
+      g.globalAlpha = 1;
       g.clearRect(0, 0, L.w, L.h);
-      // water marks in the page's water token
       g.fillStyle = tok.water;
-      var rp = ripples(L, tok), tt = still ? 0 : now / 1000;
-      g.globalAlpha = 0.45;
-      rp.forEach(function (p) {
+      var tt = still ? 0 : now / 1000;
+      g.globalAlpha = 0.4;
+      ripples(L).forEach(function (p) {
         var x = Math.round(p.x + Math.sin(tt * 0.6 + p.ph) * 3), y = Math.round(p.y);
-        if (insideAny(L, x, y)) return;
-        g.fillRect(x, y, p.w, 1);
-        g.fillRect(x + 1, y - 1, Math.max(1, p.w - 2), 1);
+        g.fillRect(x, y, p.w, 1); g.fillRect(x + 1, y - 1, Math.max(1, p.w - 2), 1);
       });
       g.globalAlpha = 1;
-      // island shadows (token)
       g.fillStyle = tok.shadow;
-      g.globalAlpha = 1;
-      for (var tid in L.towns) { var tp = L.towns[tid]; g.fillRect(tp.x + 6, tp.y + 10, TOWN_W - 4, TOWN_H - 6); }
-      if (L.commons && cfgW.commons !== false) g.fillRect(L.commons.x + 5, L.commons.y + 8, L.commons.w - 4, L.commons.h - 4);
-      g.globalAlpha = 1;
+      g.fillRect(L.px0 + 5, L.py0 + 8, L.PC * TS, L.PR * TS + SKIRT - 4);
+      g.drawImage(R.ground, 0, 0);
+      if (showCom) g.drawImage(R.comCanvas, L.commons.x, L.commons.y);
 
-      // commons
-      var comRatio = 1;
-      if (s.commons) { var cap = num(s.commons.capacity, 100); comRatio = clamp(cap > 0 ? num(s.commons.stock, cap) / cap : 0, 0, 1); }
-      if (L.commons && cfgW.commons !== false) drawCommons(g, L.commons, comRatio, now);
+      // tension along the ground between territories
+      var tensions = drawTension(g, L, s, now, still);
 
-      // grounds
       var list = [];
+      function push(y, f, top) { list.push({ y: y, f: f, top: top }); }
+      // decor trees and border posts
+      L.decor.forEach(function (d) { push(d.y, function () { spr(g, d.spr, d.x, d.y); }); });
+      // forest
+      if (showCom) {
+        var C = L.commons, N = FOREST.length, alive = Math.round(comRatio * N + 0.25);
+        var order = FOREST.map(function (p, i) { return { p: p, i: i, k: hash('forest' + i) }; }).sort(function (a, b) { return a.k - b.k; });
+        order.forEach(function (o, rank) {
+          var x = C.x + Math.round(o.p[0] * C.w / 160), y = C.y + o.p[1];
+          var kind = rank < alive ? ['prop.tree1', 'prop.tree2', 'prop.treeR', 'prop.tree3', 'prop.pine'][o.i % 5] : (comRatio < 0.35 && o.i % 3 === 0 ? 'prop.dead' : (o.i % 2 ? 'prop.stump' : 'prop.stumpS'));
+          push(y, function () { spr(g, kind, x, y); });
+        });
+      }
+      // towns
       s.nations.forEach(function (n) {
         var T = R.towns[n.id], P = L.towns[n.id];
         if (!T || !P) return;
-        var dead = n.alive === false;
-        if (dead && !T.groundGrey) T.groundGrey = greyCopy(T.ground);
-        g.drawImage(dead ? T.groundGrey : T.ground, P.x, P.ly);
-        var img = dead ? greyImg() : IMG;
-        var m = n.metrics || {};
-        var shortage = num(m.shortage, 0) > 15;
-        T.items.forEach(function (it) {
-          var name = it.anim ? (dead || still ? A.anims[it.spr].frames[0] : animFrame(it.spr, now)) : it.spr;
-          list.push({ y: P.ly + it.sortY, f: function () { spr(g, name, P.x + it.x, P.ly + it.y, img); } });
-        });
-        if (shortage && !dead) {
-          [[96, 300], [200, 302], [120, 186], [60, 312]].forEach(function (p) { list.push({ y: P.ly + p[1], f: function () { spr(g, 'prop.litter', P.x + p[0], P.ly + p[1]); } }); });
+        var dead = n.alive === false, img = dead ? greyImg() : IMG, m = n.metrics || {};
+        T.items.forEach(function (it) { push(P.y + it.y, function () { spr(g, it.spr, P.x + it.x, P.y + it.y, img); }); });
+        push(P.y + 96.5, function () { drawBanners(g, P.x + T.hallX, P.y + 40, T.key, dead); });
+        if (P.post) push(P.post.y, function () { spr(g, 'bld.hut', P.post.x, P.post.y, img); });
+        if (num(m.shortage, 0) > 15 && !dead) {
+          [[70, 138], [140, 134], [96, 124], [36, 112]].forEach(function (p) { push(P.y + p[1], function () { spr(g, 'prop.litter', P.x + p[0], P.y + p[1]); }); });
         }
+        var fl = T.flag;
+        push(P.y + fl.y, function () { drawFlag(g, P.x + fl.x, P.y + fl.y, T.key, T.emblem, now + idxOf[n.id] * 300, still, dead); });
         if (dead) {
-          [[100, 150], [232, 150], [40, 290], [180, 290], [150, 200]].forEach(function (p, i) {
-            list.push({ y: P.ly + p[1] + 1, f: function () { spr(g, still ? A.anims['fx.fire'].frames[0] : animFrame('fx.fire', now, i * 0.37), P.x + p[0], P.ly + p[1]); } });
+          [[40, 96], [104, 98], [176, 96], [60, 140], [170, 140]].forEach(function (p, i) {
+            push(P.y + p[1] + 1, function () { spr(g, still ? A.anims['fx.fire'].frames[0] : animFrame('fx.fire', now, i * 0.37), P.x + p[0], P.y + p[1]); });
           });
           return;
         }
-        // governor at the hall door
         var gov = n.governor || {};
         if (gov.inOffice !== false) {
-          var gk = GOV_SPRITE[gov.type] || 'gper';
-          var gx = P.x + 144, gy = P.ly + 162;
-          if (gov.type === 'aligned_ai') list.push({ y: P.ly + 150, f: function () { spr(g, still ? A.anims['prop.server'].frames[0] : animFrame('prop.server', now), P.x + 176, P.ly + 152); } });
-          list.push({ y: gy, f: function () {
-            spr(g, still ? 'ch.' + gk + '.idle.down#0' : animFrame('ch.' + gk + '.idle.down', now), gx, gy);
-          }, top: function () {
+          var gk2 = GOV_SPRITE[gov.type] || 'gper', gx = P.x + T.gov.x, gy = P.y + T.gov.y;
+          push(gy, function () {
+            spr(g, still ? 'ch.' + gk2 + '.idle.down#0' : animFrame('ch.' + gk2 + '.idle.down', now), gx, gy);
+            if (gov.type === 'human_player') { g.fillStyle = '#ffd25e'; g.fillRect(gx - 3, gy - 35, 7, 2); g.fillRect(gx - 3, gy - 37, 1, 2); g.fillRect(gx, gy - 38, 1, 3); g.fillRect(gx + 3, gy - 37, 1, 2); }
+          }, function () {
             var lg = R.lastGov[n.id], emo = EMO_MOOD[gov.mood] || 'emo.note';
             if (lg && lg.bribeAt && now - lg.bribeAt < 5000) emo = 'emo.gold';
             var cyc = still ? 0 : ((now + hash(n.id) % 1000) % 5200);
             if (cyc < 3400) drawEmote(g, emo, gx, gy - 31, now);
-          } });
+          });
         }
       });
 
       // citizens
-      var labels = [], me = env.myUserId();
+      var labels = [], me = env.myUserId(), nTravel = 0, nProtest = 0;
       for (var aid in R.agents) {
         (function (ag) {
-          if (ag.travel && ag.travel.phase === 'boat') return;
-          var P = L.towns[ag.nid], n = nById[ag.nid];
-          if (!P || !n || n.alive === false) return;
-          if (ag.inside && !ag.travel) return;
-          var c = cid2c[ag.cid] || {};
-          var x = P.x + ag.x, y = P.ly + ag.y;
+          var n = nById[ag.nid];
+          if (!ag.travel && (!L.towns[ag.nid] || !n || n.alive === false || ag.inside || !ag.placed)) return;
+          var c = cid2c[ag.cid] || {}, x = ag.x, y = ag.y;
+          if (ag.travel && ag.wait <= 0) nTravel++;
+          else if (ag.role === 'protest') nProtest++;
           var anim = 'ch.' + ag.key + '.' + (ag.moving && !still ? 'walk' : 'idle') + '.' + ag.dir;
           if (!A.anims[anim]) anim = 'ch.w1.idle.down';
           var ph = (hash(ag.cid) % 100) / 100;
           var name = still ? A.anims[anim].frames[0] : animFrame(anim, now * ((num(c.mood, 0.6) < 0.3) ? 0.7 : 1), ph);
+          var fade = 1;
+          if (ag.travel && !ag.travel.to && ag.path.length <= 1) fade = 0.55;
           var item = { y: y, f: function () {
             if (c.isFollower) {
               var mine = me && c.ownerId === me;
-              g.fillStyle = mine ? tok.signal : tok.text;
-              g.globalAlpha = 0.9;
-              g.fillRect(Math.round(x) - 6, Math.round(y) - 1, 12, 1);
-              g.fillRect(Math.round(x) - 7, Math.round(y), 14, 1);
-              g.fillRect(Math.round(x) - 6, Math.round(y) + 1, 12, 1);
+              g.fillStyle = mine ? tok.signal : tok.text; g.globalAlpha = 0.9;
+              g.fillRect(Math.round(x) - 6, Math.round(y) - 1, 12, 1); g.fillRect(Math.round(x) - 7, Math.round(y), 14, 1); g.fillRect(Math.round(x) - 6, Math.round(y) + 1, 12, 1);
               g.globalAlpha = 1;
             }
-            spr(g, name, x, y);
+            spr(g, name, x, y, null, fade < 1 ? fade : null);
+            if (ag.travel) drawCase(g, x, y, ag.dir);
+            else if (ag.role === 'protest') drawPlacard(g, x, y, ph, now, still);
             if (c.cls === 'elite') { g.fillStyle = tok.owner; g.fillRect(Math.round(x) - 1, Math.round(y) - 31, 2, 2); }
           } };
-          // emotes
           var e = null, cyc = still ? 0 : (now / 1000 + ph * 7) % 7;
-          if (c.protesting) e = cyc < 3.5 ? (ph < 0.5 ? 'emo.angry' : 'emo.alarm') : null;
+          if (ag.travel) e = null;
+          else if (c.protesting || ag.role === 'protest') e = cyc < 3.5 ? (ph < 0.5 ? 'emo.angry' : 'emo.alarm') : null;
           else if (c.hidingIncome && cyc > 5.2) e = 'emo.cash';
           else if (num(c.mood, 0.6) < 0.25 && cyc < 2.4) e = 'emo.tear';
           else if (R.crisis[ag.nid] && now - R.crisis[ag.nid] < 3500 && ph < 0.12) e = 'emo.bang';
@@ -862,16 +982,6 @@
           if (c.isFollower) labels.push({ x: x, y: y - 34, name: c.name || 'Citizen', mine: me && c.ownerId === me });
         })(R.agents[aid]);
       }
-      // boats
-      R.boats.forEach(function (b) {
-        list.push({ y: b.y + 8, f: function () {
-          var an = b.dir === 'R' ? 'fx.boatR' : 'fx.boatL';
-          spr(g, still ? A.anims[an].frames[0] : animFrame(an, now), b.x, b.y);
-          // passenger: upper body above the gunwale
-          var key = 'ch.' + b.ag.key + '.idle.' + (b.dir === 'R' ? 'right' : 'left') + '#0', f = A.frames[key];
-          if (f) g.drawImage(IMG, f[0], f[1], 16, 22, Math.round(b.x - 8 + (b.dir === 'R' ? -6 : 6)), Math.round(b.y - 22), 16, 22);
-        } });
-      });
       list.sort(function (a, b) { return a.y - b.y; });
       list.forEach(function (it) { it.f(); });
       list.forEach(function (it) { if (it.top) it.top(); });
@@ -884,31 +994,35 @@
         var t = now - fx.t0;
         if (t > 4200 || still) return;
         keepFx.push(fx);
-        [[144, 120, 0], [70, 250, 300], [220, 240, 520], [150, 300, 800], [240, 110, 1000]].forEach(function (b) {
+        [[104, 60, 0], [40, 110, 300], [170, 100, 520], [104, 140, 800], [180, 50, 1000]].forEach(function (b) {
           var tb = t - b[2];
           if (tb < 0) return;
           var an = A.anims['fx.boom'], k = Math.floor(tb / 1000 * an.fps);
-          if (k < an.frames.length) spr(g, an.frames[k], P.x + b[0], P.ly + b[1]);
+          if (k < an.frames.length) spr(g, an.frames[k], P.x + b[0], P.y + b[1]);
         });
       });
       R.fx = keepFx;
 
-      // ---- blit to screen: whole-number scale, whole device px offsets, no smoothing
-      camera(L, now, still);
+      // ---- camera and blit: whole-number scale, whole device px offsets, no smoothing
+      var cam = camera(L, now, still);
+      var z = cam.z, ox = cam.ox, oy = cam.oy;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.globalAlpha = 1;
-      ctx.fillStyle = tok.bg;
-      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-      ctx.fillStyle = tok.water;
-      ctx.globalAlpha = 0.13;
-      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-      ctx.globalAlpha = 1;
-      var sc = L.s;
+      ctx.fillStyle = tok.bg; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      ctx.fillStyle = tok.water; ctx.globalAlpha = 0.13; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.globalAlpha = 1;
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(R.frame, 0, 0, L.w, L.h, L.ox, L.oy, L.w * sc, L.h * sc);
+      ctx.drawImage(R.frame, 0, 0, L.w, L.h, ox, oy, L.w * z, L.h * z);
       var ds = ctx.canvas.dataset;
-      if (ds && (ds.pxScale !== String(sc) || ds.pxMode !== L.mode)) { ds.pxScale = String(sc); ds.pxMode = L.mode; }
-      // strike flash
+      if (ds) {
+        if (ds.pxScale !== String(L.s)) ds.pxScale = String(L.s);
+        if (ds.pxZoom !== String(z)) ds.pxZoom = String(z);
+        if (ds.pxMode !== L.mode) ds.pxMode = L.mode;
+        var fit = L.mode === 'field' ? '1' : '0';
+        if (ds.pxFits !== fit) ds.pxFits = fit;
+        ds.pxField = L.w + 'x' + L.h + ' ' + L.orient;
+        ds.pxTravel = String(nTravel); ds.pxProtest = String(nProtest); ds.pxStrike = String(R.fx.length);
+        ds.pxFallen = String(s.nations.filter(function (n) { return n.alive === false; }).length);
+      }
       R.fx.forEach(function (fx) {
         var t = now - fx.t0;
         if (t < 700) { ctx.globalAlpha = 0.55 * (1 - t / 700); ctx.fillStyle = tok.text; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.globalAlpha = 1; }
@@ -916,260 +1030,331 @@
 
       // ---- overlays in CSS px
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      function toCss(wx, wy) { return [(L.ox + wx * sc) / dpr, (L.oy + wy * sc) / dpr]; }
-      function cssRect(x, y, w, h) { var a = toCss(x, y); return [a[0], a[1], a[0] + w * sc / dpr, a[1] + h * sc / dpr]; }
-      function shown(q) {
-        var ix = Math.max(0, Math.min(q[2], W) - Math.max(q[0], 0)), iy = Math.max(0, Math.min(q[3], H) - Math.max(q[1], 0));
-        return ix * iy / Math.max(1, (q[2] - q[0]) * (q[3] - q[1]));
-      }
-      var k = sc / dpr, framed = L.mode !== 'fit';
-      var showCommons = !!(L.commons && cfgW.commons !== false);
-      // which towns are on screen (framed modes only; 'fit' shows all)
-      var onScreen = {}, chips = [], avoid = [];
-      s.nations.forEach(function (n) {
-        var P = L.towns[n.id];
-        if (P) onScreen[n.id] = !framed || shown(cssRect(P.x, P.y, TOWN_W, TOWN_H)) >= 0.5;
-      });
-      // labels first (measured), so the dial and the edge chips can keep clear of them
-      var labelBoxes = [];
+      function toCss(wx, wy) { return [(ox + wx * z) / dpr, (oy + wy * z) / dpr]; }
+      var zoomed = z !== L.s || L.mode !== 'field';
+      // town name tags
       s.nations.forEach(function (n, i) {
-        var P = L.towns[n.id];
-        if (!P || !onScreen[n.id]) return;
-        var lb = measureLabel(ctx, n, toCss(P.x + TOWN_W / 2, P.y), W, H, framed, n.id === L.hero);
-        labelBoxes.push({ n: n, i: i, b: lb });
-        avoid.push([lb.x - 4, lb.y - 4, lb.x + lb.w + 4, lb.y + lb.h + 4]);
+        var P = L.towns[n.id], T = R.towns[n.id];
+        if (!P || !T) return;
+        var p = toCss(P.x + TOWN_C * TS / 2, P.y + TOWN_R * TS);
+        if (zoomed && (p[0] < 0 || p[0] > W || p[1] < 0 || p[1] > H + 8)) return;   // off screen while the camera is in close
+        drawNameTag(ctx, n, T, p, tok, W, H, zoomed);
       });
-      var D = cfgW.escalation ? dialSpot(L, W, H, dpr, framed ? avoid : null) : null;
-      if (D) avoid.push([D.x - D.r - 6, D.y - D.r - 8, D.x + D.r + 6, D.y + 34]);
-      var stamp = L.mode !== 'focus', stampText = 'YEAR ' + num(s.year, 0) + ' · ROUND ' + num(s.round, 0);
-      if (stamp && framed) { ctx.font = '500 10px "IBM Plex Mono", monospace'; avoid.push([4, H - 24, 18 + ctx.measureText(stampText).width, H]); }
-      var comRect = showCommons ? cssRect(L.commons.x, L.commons.y, L.commons.w, L.commons.h) : null;
-      var comOn = showCommons && (!framed || shown(comRect) >= 0.5);
-      // edge chips for towns (and the commons) out of frame
-      if (framed) {
-        var want = [];
-        s.nations.forEach(function (n, i) {
-          var P = L.towns[n.id];
-          if (!P || onScreen[n.id]) return;
-          var c = toCss(P.x + TOWN_W / 2, P.y + TOWN_H / 2), m = n.metrics || {}, st = '';
-          if (n.alive === false) st = 'FALLEN';
-          else if (num(m.protestRate, 0) >= 8) st = 'PROTESTS ' + Math.round(m.protestRate) + '%';
-          want.push({ id: n.id, name: n.name || n.id, status: st, tint: n.alive === false ? tok.crit : tok.tints[i % 5], hot: !!st, tx: c[0], ty: c[1],
-            d: Math.hypot(c[0] - W / 2, c[1] - H / 2) });
-        });
-        // nearest first, so the town just out of frame gets the spot straight towards it
-        want.sort(function (a, b) { return a.d - b.d || (a.id < b.id ? -1 : 1); });
-        want.forEach(function (c) { chips.push(placeChip(ctx, c, W, H, avoid)); });
-        if (showCommons && !comOn) {
-          var cc = toCss(L.commons.x + L.commons.w / 2, L.commons.y + L.commons.h / 2);
-          chips.push(placeChip(ctx, { id: '__commons', name: 'Commons ' + Math.round(comRatio * 100) + '%', status: '', tint: comRatio < 0.25 ? tok.crit : tok.line2, tx: cc[0], ty: cc[1] }, W, H, avoid));
-        }
-      }
-      var chipAt = {};
-      chips.forEach(function (c) { chipAt[c.id] = c; });
-
-      // tension arcs reuse the vector renderer with island geometry; an out-of-frame town is its chip
-      var LV = { nations: {}, gx: 0, gy: 0 };
-      var cnt = 0;
-      s.nations.forEach(function (n) {
-        var P = L.towns[n.id];
-        if (!P) return;
-        var c0 = toCss(P.x + TOWN_W / 2, P.y + TOWN_H * 0.45), R0 = TOWN_W * 0.3 * k;
-        if (chipAt[n.id]) { c0 = [chipAt[n.id].cx, chipAt[n.id].cy]; R0 = 9; }
-        LV.nations[n.id] = { x: c0[0], y: c0[1], R: R0, i: cnt };
-        LV.gx += c0[0]; LV.gy += c0[1]; cnt++;
+      // tension labels
+      tensions.forEach(function (tn) {
+        if (tn.t < 35) return;
+        var p = toCss(tn.x, tn.y), col = tn.t >= 70 ? tok.crit : tok.warn;
+        var label = (W < 520 ? '' : 'TENSION ') + Math.round(tn.t);
+        ctx.font = '600 9.5px "IBM Plex Mono", monospace';
+        var w = ctx.measureText(label).width + 10;
+        ctx.globalAlpha = 0.92; ctx.fillStyle = tok.bg; rr(ctx, p[0] - w / 2, p[1] - 21, w, 15, 4); ctx.fill();
+        ctx.globalAlpha = 1; ctx.lineWidth = 1; ctx.strokeStyle = col; ctx.stroke();
+        ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, p[0], p[1] - 13);
       });
-      LV.gx /= Math.max(1, cnt); LV.gy /= Math.max(1, cnt) - 0.001;
-      LV.gy += 1;
-      var tens = s;
-      if (framed && s.tension) {
-        // an arc between two towns that are both out of frame would only cross the view
-        tens = { tension: {} };
-        Object.keys(s.tension).forEach(function (key) { var ids = key.split('|'); if (onScreen[ids[0]] || onScreen[ids[1]]) tens.tension[key] = s.tension[key]; });
-      }
-      try { env.vector.drawTension(tens, LV, now, still); } catch (e) { if (!R.warned) { R.warned = 1; console.warn("[pixelmap] tension", e); } }
-
-      // labels
-      labelBoxes.forEach(function (q) { drawLabel(ctx, q.n, q.b, tok, tok.tints[q.i % 5]); });
-      if (comOn) {
+      // commons label
+      if (showCom) {
         var cp = toCss(L.commons.x + L.commons.w / 2, L.commons.y + L.commons.h);
         ctx.font = '600 9.5px "IBM Plex Mono", monospace';
-        var ct = 'COMMONS ' + Math.round(comRatio * 100) + '%';
-        var cw = ctx.measureText(ct).width + 10;
-        if (cp[1] + 19 > H) {
-          // no room below: beside the islet, in the water
-          var side = toCss(L.commons.x + L.commons.w, L.commons.y + L.commons.h / 2);
-          cp = [side[0] + 8 + cw / 2, side[1] - 9];
-        }
-        ctx.globalAlpha = 0.9; ctx.fillStyle = tok.surface; rr(ctx, cp[0] - cw / 2, cp[1] + 2, cw, 15, 4); ctx.fill(); ctx.globalAlpha = 1;
-        ctx.fillStyle = comRatio < 0.25 ? tok.crit : tok.dim;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(ct, cp[0], cp[1] + 10);
+        var ct = 'SHARED FOREST ' + Math.round(comRatio * 100) + '%', cw = ctx.measureText(ct).width + 10;
+        ctx.globalAlpha = 0.9; ctx.fillStyle = tok.surface; rr(ctx, cp[0] - cw / 2, cp[1] - 8, cw, 15, 4); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.fillStyle = comRatio < 0.25 ? tok.crit : tok.dim; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(ct, cp[0], cp[1] - 0.5);
       }
       // follower labels
       labels.sort(function (a, b) { return (b.mine ? 1 : 0) - (a.mine ? 1 : 0); });
       ctx.font = '500 10px "IBM Plex Mono", monospace';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      labels.slice(0, 10).forEach(function (l) {
+      labels.slice(0, 8).forEach(function (l) {
         var p = toCss(l.x, l.y), w = ctx.measureText(l.name).width + 10;
         ctx.globalAlpha = 0.92; ctx.fillStyle = tok.surface; rr(ctx, p[0] - w / 2, p[1] - 15, w, 14, 3); ctx.fill();
         ctx.globalAlpha = 1; ctx.lineWidth = 1; ctx.strokeStyle = l.mine ? tok.signal : tok.line2; ctx.stroke();
         ctx.fillStyle = l.mine ? tok.signal : tok.text; ctx.fillText(l.name, p[0], p[1] - 7.5);
       });
-      // pings: an outline around the island, or around its chip when it is out of frame
+      // pings: outline around the town's territory
       var keepP = [];
       R.pings.forEach(function (p) {
         var f = (now - p.t0) / 1800, P = L.towns[p.nid];
         if (f >= 1 || !P || still) return;
         keepP.push(p);
         ctx.globalAlpha = 0.8 * (1 - f); ctx.strokeStyle = tok.signal; ctx.lineWidth = 2;
-        var ch = chipAt[p.nid];
-        if (ch) { rr(ctx, ch.x - 3 - f * 6, ch.y - 3 - f * 6, ch.w + 6 + f * 12, ch.h + 6 + f * 12, 8); }
-        else {
-          var a = toCss(P.x - 4 - f * 8, P.y - 4 - f * 8), b = toCss(P.x + TOWN_W + 4 + f * 8, P.y + TOWN_H + 4 + f * 8);
-          rr(ctx, a[0], a[1], b[0] - a[0], b[1] - a[1], 8);
-        }
-        ctx.stroke(); ctx.globalAlpha = 1;
+        var a = toCss(P.terr.x - f * 8, P.terr.y - f * 8), b = toCss(P.terr.x + P.terr.w + f * 8, P.terr.y + P.terr.h + f * 8);
+        rr(ctx, a[0], a[1], b[0] - a[0], b[1] - a[1], 8); ctx.stroke(); ctx.globalAlpha = 1;
       });
       R.pings = keepP;
-      chips.forEach(function (c) { drawChip(ctx, c, tok); });
-      if (D) {
-        if (framed) { ctx.globalAlpha = 0.85; ctx.fillStyle = tok.surface; rr(ctx, D.x - D.r - 7, D.y - D.r - 7, D.r * 2 + 14, D.r + 40, 8); ctx.fill(); ctx.globalAlpha = 1; }
-        try { env.vector.drawDial(num(s.doomsday, 0), D); } catch (e) { /* ignore */ }
+      // action tags over towns
+      for (var tid in R.tags) {
+        var tg = R.tags[tid], age = now - tg.t0;
+        if (age > 2600) { delete R.tags[tid]; continue; }
+        var anchorW = tid === '__commons' ? (L.commons ? [L.commons.x + L.commons.w / 2, L.commons.y + 12] : null)
+          : (L.towns[tid] ? [L.towns[tid].x + R.towns[tid].hallX, L.towns[tid].y + 26] : null);
+        if (!anchorW) continue;
+        var tp = toCss(anchorW[0], anchorW[1]);
+        if (zoomed && (tp[0] < 0 || tp[0] > W || tp[1] < 0 || tp[1] > H)) continue;
+        drawTag(ctx, tg, tp, age, still, tok, W);
       }
-      if (stamp) {
+      // HUD, doomsday dial, stamp
+      var hudBox = drawHud(ctx, s, L, tok, W, H, dpr);
+      if (cfgW.escalation) {
+        var D = dialSpot(L, W, H, dpr, hudBox, toCss);
+        if (D) {
+          ctx.globalAlpha = 0.85; ctx.fillStyle = tok.surface; rr(ctx, D.x - D.r - 7, D.y - D.r - 7, D.r * 2 + 14, D.r + 40, 8); ctx.fill(); ctx.globalAlpha = 1;
+          try { env.vector.drawDial(num(s.doomsday, 0), D); } catch (e) { /* ignore */ }
+        }
+      }
+      if (!L.story) {
+        var stampText = 'YEAR ' + num(s.year, 0) + ' · ROUND ' + num(s.round, 0);
         ctx.font = '500 10px "IBM Plex Mono", monospace';
-        if (framed) { ctx.globalAlpha = 0.85; ctx.fillStyle = tok.surface; rr(ctx, 6, H - 23, ctx.measureText(stampText).width + 12, 18, 5); ctx.fill(); ctx.globalAlpha = 1; }
+        var sw = ctx.measureText(stampText).width + 12, sx = W - sw - 6, sy = H - 23;
+        ctx.globalAlpha = 0.85; ctx.fillStyle = tok.surface; rr(ctx, sx, sy, sw, 18, 5); ctx.fill(); ctx.globalAlpha = 1;
         ctx.fillStyle = tok.faint; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-        ctx.fillText(stampText, 12, H - 10);
+        ctx.fillText(stampText, sx + 6, H - 10);
       }
       return true;
     };
 
-    // ---------------------------------------------------------------- edge chips (out-of-frame towns)
-    function overlaps(q, list) {
-      for (var i = 0; i < list.length; i++) { var o = list[i]; if (q[0] < o[2] && q[2] > o[0] && q[1] < o[3] && q[3] > o[1]) return true; }
-      return false;
-    }
-    function placeChip(ctx, c, W, H, avoid) {
-      ctx.font = '700 11px "IBM Plex Mono", monospace';
-      var tw = ctx.measureText(c.name.toUpperCase()).width;
-      ctx.font = '600 9px "IBM Plex Mono", monospace';
-      var sw = c.status ? ctx.measureText(c.status).width + 8 : 0;
-      var w = Math.min(W - 12, Math.ceil(tw + sw + 30)), h = 22, m = 6;
-      // from the view centre towards the town, stopped at the edge
-      var cx = W / 2, cy = H / 2, dx = c.tx - cx, dy = c.ty - cy;
-      var hx = Math.max(1, W / 2 - m - w / 2), hy = Math.max(1, H / 2 - m - h / 2);
-      var t = Math.min(dx ? hx / Math.abs(dx) : Infinity, dy ? hy / Math.abs(dy) : Infinity);
-      if (!isFinite(t)) t = 0;
-      var px = cx + dx * t, py = cy + dy * t, horiz = Math.abs(dy) * hx >= Math.abs(dx) * hy;   // hits top or bottom
-      var best = null;
-      for (var i = 0; i < 14 && !best; i++) {
-        var step = (i % 2 ? 1 : -1) * Math.ceil(i / 2), qx = px, qy = py;
-        if (horiz) qx = clamp(px + step * (w / 2 + 6) * (dx >= 0 ? -1 : 1), m + w / 2, W - m - w / 2);
-        else qy = clamp(py + step * (h + 6) * (dy >= 0 ? -1 : 1), m + h / 2, H - m - h / 2);
-        var q = [qx - w / 2, qy - h / 2, qx + w / 2, qy + h / 2];
-        if (!overlaps(q, avoid)) best = [qx, qy];
+    // ---------------------------------------------------------------- camera
+    function camera(L, now, still) {
+      var base = { z: L.s, ox: L.ox, oy: L.oy };
+      if (L.mode === 'pan') {
+        // cycle between towns, whole device px
+        var n = L.order.length, per = 8.3, c;
+        var ctr = function (id) { var t = L.towns[id]; return [t.x + TOWN_C * 8, t.y + TOWN_R * 8]; };
+        if (still || n < 2) c = ctr(L.order[0]);
+        else {
+          var t = now / 1000, i = Math.floor(t / per) % n, ph = t % per;
+          c = ctr(L.order[i]);
+          if (ph > 6.5) { var e = (ph - 6.5) / 1.8, d = ctr(L.order[(i + 1) % n]); e = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2; c = [c[0] + (d[0] - c[0]) * e, c[1] + (d[1] - c[1]) * e]; }
+        }
+        var vw = L.devW, vh = L.devH;
+        var cx = L.w > vw ? clamp(c[0], vw / 2, L.w - vw / 2) : L.w / 2, cy = L.h > vh ? clamp(c[1], vh / 2, L.h - vh / 2) : L.h / 2;
+        return { z: 1, ox: Math.round(vw / 2 - cx), oy: Math.round(vh / 2 - cy) };
       }
-      if (!best) best = [px, py];
-      var out = { id: c.id, name: c.name, status: c.status, tint: c.tint, hot: c.hot, x: best[0] - w / 2, y: best[1] - h / 2, w: w, h: h,
-        cx: best[0], cy: best[1], ang: Math.atan2(c.ty - best[1], c.tx - best[0]) };
-      avoid.push([out.x - 4, out.y - 4, out.x + w + 4, out.y + h + 4]);
-      return out;
-    }
-    function drawChip(ctx, c, tok) {
-      ctx.save();
-      ctx.globalAlpha = 0.94; ctx.fillStyle = tok.surface; rr(ctx, c.x, c.y, c.w, c.h, 6); ctx.fill();
-      ctx.globalAlpha = 1; ctx.strokeStyle = c.tint; ctx.lineWidth = 1.2; ctx.stroke();
-      // arrow towards the town
-      ctx.translate(c.x + 12, c.cy); ctx.rotate(c.ang);
-      ctx.strokeStyle = c.tint; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.beginPath(); ctx.moveTo(-5.5, 0); ctx.lineTo(5, 0); ctx.moveTo(1, -4); ctx.lineTo(5, 0); ctx.lineTo(1, 4); ctx.stroke();
-      ctx.restore();
-      ctx.save();
-      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.font = '700 11px "IBM Plex Mono", monospace'; ctx.fillStyle = tok.label;
-      var name = c.name.toUpperCase(), x = c.x + 22, maxW = c.w - 28;
-      var nw = ctx.measureText(name).width;
-      ctx.fillText(name, x, c.cy + 0.5, maxW);
-      if (c.status) {
-        ctx.font = '600 9px "IBM Plex Mono", monospace'; ctx.fillStyle = tok.crit;
-        ctx.fillText(c.status, x + Math.min(nw, maxW) + 8, c.cy + 0.5, Math.max(10, maxW - nw - 8));
-      }
-      ctx.restore();
+      var cn = R.cine;
+      if (!cn || still || !L.towns[cn.nid]) { R.cine = null; return base; }
+      var tt = now - cn.t0, total = CINE_IN + CINE_HOLD + CINE_OUT;
+      if (tt >= total) { R.cine = null; return base; }
+      var P = L.towns[cn.nid];
+      // closest whole-number zoom that still shows the whole town with a little ground around it
+      var zt = L.s;
+      for (var k = L.s + 1; k <= L.s * 3; k++) { if ((TOWN_C * TS + 40) * k <= L.devW && (TOWN_R * TS + 70) * k <= L.devH) zt = k; else break; }
+      if (zt === L.s) return base;
+      var e = tt < CINE_IN ? tt / CINE_IN : tt < CINE_IN + CINE_HOLD ? 1 : 1 - (tt - CINE_IN - CINE_HOLD) / CINE_OUT;
+      e = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2;
+      var z = L.s + Math.round((zt - L.s) * e);
+      // centre moves smoothly from the field centre to the town (in art px), then pixel-snapped
+      var fcx = (L.devW / 2 - L.ox) / L.s, fcy = (L.devH / 2 - L.oy) / L.s;
+      // the town sits a little below the middle, clear of the caption at the top
+      var vw = L.devW / zt, vh = L.devH / zt;
+      var tcx = P.x + TOWN_C * TS / 2;
+      var tcy = P.y + TOWN_R * TS / 2 - vh * 0.08;
+      var cx2 = fcx + (tcx - fcx) * e, cy2 = fcy + (tcy - fcy) * e;
+      return { z: z, ox: Math.round(L.devW / 2 - cx2 * z), oy: Math.round(L.devH / 2 - cy2 * z) };
     }
 
+    // ---------------------------------------------------------------- tension along the ground
+    function clipOut(r, x0, y0, x1, y1) {
+      // parameter where the segment from inside r leaves it
+      var t = 1, dx = x1 - x0, dy = y1 - y0;
+      if (dx > 0) t = Math.min(t, (r.x + r.w - x0) / dx); else if (dx < 0) t = Math.min(t, (r.x - x0) / dx);
+      if (dy > 0) t = Math.min(t, (r.y + r.h - y0) / dy); else if (dy < 0) t = Math.min(t, (r.y - y0) / dy);
+      return clamp(t, 0, 1);
+    }
+    function onSomething(L, x, y) {
+      var C = L.commons;
+      if (C && x > C.x - 20 && x < C.x + C.w + 20 && y > C.y - 12 && y < C.y + C.h + 20) return true;
+      for (var id in L.towns) { var q = L.towns[id].terr; if (x > q.x - 16 && x < q.x + q.w + 16 && y > q.y - 8 && y < q.y + q.h + 16) return true; }
+      return false;
+    }
+    function drawTension(g, L, s, now, still) {
+      var ten = s.tension || {}, tok = env.tok(), out = [];
+      for (var key in ten) {
+        var t = num(ten[key], 0);
+        if (t < 15) continue;
+        var ids = key.split('|'), a = L.towns[ids[0]], b = L.towns[ids[1]];
+        if (!a || !b) continue;
+        var ax = a.terr.x + a.terr.w / 2, ay = a.terr.y + a.terr.h / 2, bx = b.terr.x + b.terr.w / 2, by = b.terr.y + b.terr.h / 2;
+        var t0 = clipOut(a.terr, ax, ay, bx, by), t1 = 1 - clipOut(b.terr, bx, by, ax, ay);
+        if (t1 <= t0) continue;
+        var x0 = ax + (bx - ax) * t0, y0 = ay + (by - ay) * t0, x1 = ax + (bx - ax) * t1, y1 = ay + (by - ay) * t1;
+        var len = Math.hypot(x1 - x0, y1 - y0), col = t >= 70 ? tok.crit : t >= 35 ? tok.warn : tok.faint;
+        var sz = t >= 70 ? 3 : 2, stepPx = t >= 70 ? 6 : 5, shift = (!still && t >= 35) ? (now / 90) % stepPx : 0;
+        g.fillStyle = col;
+        // soft glow under the dots
+        g.globalAlpha = 0.18 + t / 100 * 0.25;
+        for (var d = 0; d < len; d += 2) { var gx = x0 + (x1 - x0) * d / len, gy = y0 + (y1 - y0) * d / len; g.fillRect(Math.round(gx) - sz, Math.round(gy) - sz, sz * 2 + 1, sz * 2 + 1); }
+        g.globalAlpha = 0.6 + t / 100 * 0.4;
+        for (d = shift; d < len; d += stepPx) { var px = x0 + (x1 - x0) * d / len, py = y0 + (y1 - y0) * d / len; g.fillRect(Math.round(px) - (sz >> 1), Math.round(py) - (sz >> 1), sz, sz); }
+        g.globalAlpha = 1;
+        // marker point: the middle, slid along the line until it is on open ground (not the forest, not a town)
+        var mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+        for (var k = 0; k <= 10; k++) {
+          var f = 0.5 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.05, qx = x0 + (x1 - x0) * f, qy = y0 + (y1 - y0) * f;
+          if (!onSomething(L, qx, qy)) { mx = qx; my = qy; break; }
+        }
+        out.push({ t: t, x: mx, y: my });
+        if (t >= 70) {
+          // a barricade where the two sides meet
+          spr(g, 'prop.sandbag', mx - 12, my + 8); spr(g, 'prop.sandbag', mx + 12, my + 8); spr(g, 'prop.barrier', mx, my + 10);
+        }
+      }
+      return out;
+    }
+
+    // ---------------------------------------------------------------- overlays
     function drawEmote(g, name, x, y, now) {
       var an = A.anims[name];
       if (an) {
-        // animated emotes play once per cycle, then hold the last frame
         var total = (an.durs || []).reduce(function (a, b) { return a + b; }, 0) || an.frames.length * 120;
         var t = now % (total + 900), acc = 0, k = an.frames.length - 1;
         if (an.durs) { for (var i = 0; i < an.durs.length; i++) { acc += an.durs[i]; if (t < acc) { k = i; break; } } }
         spr(g, an.frames[k], x, y);
       } else spr(g, name, x, y);
     }
-
-    function labelParts(n, tok) {
-      var parts = [];
-      if (n.alive === false) parts.push([tok.crit, 'FALLEN']);
-      else {
-        parts.push([tok.dim, env.systemLabel(n.system).toUpperCase()]);
-        var m = n.metrics || {};
-        if (num(m.protestRate, 0) >= 8) parts.push([tok.crit, 'PROTESTS ' + Math.round(m.protestRate) + '%']);
-        if (num(m.shortage, 0) > 15) parts.push([tok.warn, 'SHORTAGES']);
-        if (n.governor && n.governor.inOffice === false) parts.push([tok.warn, 'NO GOVERNOR']);
-      }
-      return parts;
-    }
-    // label box in CSS px above the island; kept inside the stage when the view is framed by a camera
-    function measureLabel(ctx, n, p, W, H, framed, hero) {
-      var tok = env.tok(), name = n.name || n.id, parts = labelParts(n, tok);
+    function drawNameTag(ctx, n, T, p, tok, W, H, zoomed) {
+      var dead = n.alive === false, col = dead ? paint('grey') : paint(T.key);
+      var fs = W < 520 ? 10.5 : 12, name = (n.name || n.id);
       ctx.save();
-      var fs = hero ? (W < 360 ? 14 : 16) : (W < 520 ? 12.5 : 14.5);
       ctx.font = '700 ' + fs + 'px "Bricolage Grotesque", "IBM Plex Sans", sans-serif';
-      var nw = ctx.measureText(name).width;
-      ctx.font = '500 9px "IBM Plex Mono", monospace';
-      var sep = '  ', sw = 0;
-      parts.forEach(function (q, i) { sw += ctx.measureText(q[1]).width + (i ? ctx.measureText(sep).width : 0); });
+      var w = Math.ceil(ctx.measureText(name).width) + 22, h = fs + 7;
+      var x = clamp(p[0] - w / 2, 2, W - w - 2), y = p[1] - h / 2 + 2;
+      if (y + h > H - 2) y = H - h - 2;
+      ctx.fillStyle = col.mid; rr(ctx, x, y, w, h, h / 2); ctx.fill();
+      ctx.strokeStyle = col.dark; ctx.lineWidth = 1; ctx.stroke();
+      drawEmblemCss(ctx, T.emblem, x + 5, y + (h - 9) / 2, 9, '#1a1408');
+      ctx.fillStyle = '#16120a'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(name, x + 17, y + h / 2 + 0.5);
+      if (dead) { ctx.strokeStyle = tok.crit; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x + 15, y + h / 2); ctx.lineTo(x + w - 4, y + h / 2); ctx.stroke(); }
       ctx.restore();
-      var w = Math.max(nw, sw) + 16, h = fs + 18, x = clamp(p[0] - w / 2, 2, W - w - 2), y = p[1] - h - 2;
-      if (framed) y = clamp(y, 4, Math.max(4, H - h - 4));
-      return { x: x, y: y, w: w, h: h, fs: fs, nw: nw, sw: sw, sep: sep, name: name, parts: parts };
     }
-    function drawLabel(ctx, n, b, tok, tint) {
-      var dead = n.alive === false, x = b.x, y = b.y, w = b.w, h = b.h, fs = b.fs, nw = b.nw, sw = b.sw, sep = b.sep;
+    function drawEmblemCss(ctx, emb, x, y, size, color) {
+      var bm = EMB[emb] || EMB.sun, px = size / 7;
+      ctx.fillStyle = color;
+      for (var r = 0; r < 7; r++) for (var c = 0; c < 7; c++) if (bm[r].charAt(c) === '#') ctx.fillRect(x + c * px, y + r * px, px + 0.05, px + 0.05);
+    }
+    function drawTag(ctx, tg, p, age, still, tok, W) {
+      var a = still ? 1 : age < 180 ? age / 180 : age > 2200 ? 1 - (age - 2200) / 400 : 1;
+      var rise = still ? 0 : Math.min(1, age / 220) * 6;
+      var col = tg.sev >= 3 ? tok.crit : tg.sev === 2 ? tok.warn : tok.label;
       ctx.save();
-      ctx.globalAlpha = 0.9; ctx.fillStyle = tok.surface; rr(ctx, x, y, w, h, 6); ctx.fill();
-      ctx.globalAlpha = 1; ctx.strokeStyle = dead ? tok.crit : tint; ctx.lineWidth = 1; ctx.stroke();
-      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-      ctx.font = '700 ' + fs + 'px "Bricolage Grotesque", "IBM Plex Sans", sans-serif';
-      ctx.fillStyle = dead ? tok.faint : tok.label;
-      var cx = x + w / 2;
-      ctx.fillText(b.name, cx, y + fs + 2);
-      if (dead) { ctx.strokeStyle = tok.crit; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx - nw / 2 - 2, y + fs * 0.7); ctx.lineTo(cx + nw / 2 + 2, y + fs * 0.7); ctx.stroke(); }
-      ctx.font = '500 9px "IBM Plex Mono", monospace';
-      ctx.textAlign = 'left';
-      var tx = cx - sw / 2;
-      b.parts.forEach(function (q, i) {
-        if (i) tx += ctx.measureText(sep).width;
-        ctx.fillStyle = q[0]; ctx.fillText(q[1], tx, y + h - 5);
-        tx += ctx.measureText(q[1]).width;
+      ctx.globalAlpha = clamp(a, 0, 1);
+      var fs = W < 520 ? 10 : 11.5;
+      ctx.font = '700 ' + fs + 'px "IBM Plex Mono", monospace';
+      var w = ctx.measureText(tg.text).width + 14, h = fs + 9, x = clamp(p[0] - w / 2, 2, W - w - 2), y = p[1] - h - rise;
+      ctx.fillStyle = tok.bg; rr(ctx, x, y, w, h, 4); ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
+      // pointer
+      ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(p[0] - 4, y + h); ctx.lineTo(p[0] + 4, y + h); ctx.lineTo(p[0], y + h + 5); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(tg.text, x + w / 2, y + h / 2 + 0.5);
+      ctx.restore();
+    }
+    function govIcon(ctx, type, x, y, color) {
+      ctx.save();
+      ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 1.2;
+      if (type === 'aligned_ai') {
+        rr(ctx, x, y + 2, 9, 7, 1.5); ctx.stroke();
+        ctx.fillRect(x + 2, y + 4.5, 1.6, 1.6); ctx.fillRect(x + 5.4, y + 4.5, 1.6, 1.6);
+        ctx.beginPath(); ctx.moveTo(x + 4.5, y + 2); ctx.lineTo(x + 4.5, y); ctx.stroke();
+      } else if (type === 'human_player') {
+        ctx.beginPath();
+        for (var i = 0; i < 10; i++) { var r = i % 2 ? 2 : 4.8, an = -Math.PI / 2 + i * Math.PI / 5; ctx.lineTo(x + 4.5 + Math.cos(an) * r, y + 5 + Math.sin(an) * r); }
+        ctx.closePath(); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.arc(x + 4.5, y + 3, 2.3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, y + 10); ctx.quadraticCurveTo(x + 4.5, y + 4, x + 9, y + 10); ctx.fill();
+      }
+      ctx.restore();
+    }
+    function metric01(n, id) {
+      var v = n.metrics ? num(n.metrics[id], null) : null;
+      if (v == null) return null;
+      return clamp(v / 100, 0, 1);          // wellbeing, trust and corruption are 0-100
+    }
+    // compact corner HUD: one row per nation with chip, emblem, name, governor and three tiny bars
+    function drawHud(ctx, s, L, tok, W, H, dpr) {
+      var hud = L.hud, ns = s.nations, x, y;
+      if (L.hudCell && !L.hudOverlay) {
+        var a = [(L.ox + L.hudCell.x * L.s) / dpr, (L.oy + L.hudCell.y * L.s) / dpr];
+        x = a[0]; y = a[1];
+      }
+      var wide = hud.mode === 'wide', w = hud.w, rowH = hud.rowH, h = hud.h, head = wide ? 21 : 30;
+      if (!(L.hudCell && !L.hudOverlay)) {
+        // no reserved slot: the corner that hides the least of the towns
+        var best = null;
+        [[6, 6], [W - w - 6, 6], [6, H - h - 6], [W - w - 6, H - h - 6]].forEach(function (c) {
+          var cover = 0;
+          for (var id in L.towns) {
+            var q = L.towns[id].terr, ax = (L.ox + q.x * L.s) / dpr, ay = (L.oy + q.y * L.s) / dpr, bx = (L.ox + (q.x + q.w) * L.s) / dpr, by = (L.oy + (q.y + q.h) * L.s) / dpr;
+            cover += Math.max(0, Math.min(bx, c[0] + w) - Math.max(ax, c[0])) * Math.max(0, Math.min(by, c[1] + h) - Math.max(ay, c[1]));
+          }
+          if (!best || cover < best.cover - 1) best = { cover: cover, x: c[0], y: c[1] };
+        });
+        x = best.x; y = best.y;
+      }
+      x = clamp(x, 4, Math.max(4, W - w - 4)); y = clamp(y, 4, Math.max(4, H - h - 4));
+      ctx.save();
+      ctx.globalAlpha = L.hudOverlay ? 0.86 : 0.93; ctx.fillStyle = tok.bg; rr(ctx, x, y, w, h, 7); ctx.fill();
+      ctx.globalAlpha = 1; ctx.strokeStyle = tok.line2; ctx.lineWidth = 1; ctx.stroke();
+      var barW = wide ? 22 : Math.floor((w - 14 - 6) / 3), gap = 3, bx0 = wide ? x + w - 7 - 3 * barW - 2 * gap : x + 7;
+      var cols = [tok.good, tok.focus || tok.water, tok.crit];
+      ctx.font = '600 8px "IBM Plex Mono", monospace'; ctx.textBaseline = 'middle';
+      // legend line
+      var heads = ['Wellbeing', 'Trust', 'Corruption'];
+      var lx = x + 8, ly = y + 11;
+      heads.forEach(function (hd, i) {
+        if (!wide && i === 2) { lx = x + 8; ly += 10; }
+        ctx.fillStyle = cols[i]; ctx.fillRect(lx, ly - 3, 6, 6);
+        ctx.fillStyle = tok.dim; ctx.textAlign = 'left'; ctx.fillText(hd, lx + 8, ly + 0.5);
+        lx += ctx.measureText(hd).width + (wide ? 16 : 12);
+      });
+      var focusId = L.focus;
+      ns.forEach(function (n, i) {
+        var T = R.towns[n.id], key = T ? T.key : keyOf(n, i), dead = n.alive === false, ry = y + head + i * rowH, cy = wide ? ry + rowH / 2 : ry + 8;
+        var col = dead ? paint('grey') : paint(key);
+        if (focusId && n.id === focusId) {
+          ctx.globalAlpha = 0.28; ctx.fillStyle = col.mid; rr(ctx, x + 3, ry, w - 6, rowH - 1, 4); ctx.fill(); ctx.globalAlpha = 1;
+          ctx.strokeStyle = col.mid; ctx.lineWidth = 1.2; rr(ctx, x + 3, ry, w - 6, rowH - 1, 4); ctx.stroke();
+        }
+        var cs = wide ? rowH - 5 : 13;
+        ctx.fillStyle = col.mid; rr(ctx, x + 7, cy - cs / 2, cs, cs, 2.5); ctx.fill();
+        drawEmblemCss(ctx, T ? T.emblem : emblemOf(n, i), x + 7 + (cs - 7) / 2, cy - 3.5, 7, '#1a1408');
+        var nx = x + 7 + cs + 5, g0 = n.governor || {};
+        govIcon(ctx, g0.type, nx, cy - 5, dead ? tok.faint : tok.dim);
+        nx += 13;
+        ctx.textAlign = 'left';
+        ctx.font = '700 ' + (wide ? 11.5 : 10.5) + 'px "Bricolage Grotesque", "IBM Plex Sans", sans-serif';
+        ctx.fillStyle = dead ? tok.faint : tok.label;
+        var nameW = wide ? 76 : x + w - 6 - nx;
+        ctx.fillText(fit(ctx, n.name || n.id, nameW), nx, cy + 0.5);
+        if (wide) {
+          ctx.font = '500 9.5px "IBM Plex Mono", monospace'; ctx.fillStyle = tok.faint;
+          var gname = dead ? 'FALLEN' : (g0.inOffice === false ? 'No governor' : (g0.name || env.govLabel(g0.type)));
+          if (dead) ctx.fillStyle = tok.crit;
+          ctx.fillText(fit(ctx, gname, bx0 - nx - 82), nx + 80, cy + 0.5);
+        }
+        var by = wide ? cy : ry + 19;
+        ['welfare', 'trust', 'corruption'].forEach(function (id, k) {
+          var v = dead ? 0 : metric01(n, id), bx = bx0 + k * (barW + gap);
+          ctx.fillStyle = tok.line2; ctx.fillRect(bx, by - 2.5, barW, 5);
+          if (v != null) { ctx.fillStyle = cols[k]; ctx.fillRect(bx, by - 2.5, Math.max(1, Math.round(barW * v)), 5); }
+        });
       });
       ctx.restore();
+      return [x, y, x + w, y + h];
     }
-
-    function dialSpot(L, W, H, dpr, avoid) {
-      var r = avoid ? 20 : W < 480 ? 22 : 28;
-      var cands = [[W - r - 14, r + 16], [W - r - 14, H - 40], [r + 14, H - 52], [r + 30, r + 16]];
-      // framed views: also the water beside the framed island
-      if (avoid) cands.push([W - r - 9, Math.round(H * 0.42)], [W - r - 9, Math.round(H * 0.62)], [r + 9, Math.round(H * 0.42)], [r + 9, Math.round(H * 0.62)]);
-      var rects = [];
-      for (var id in L.towns) {
-        var t = L.towns[id];
-        rects.push([(L.ox + t.x * L.s) / dpr, (L.oy + (t.y - 30) * L.s) / dpr, (L.ox + (t.x + TOWN_W) * L.s) / dpr, (L.oy + (t.y + TOWN_H) * L.s) / dpr]);
-      }
-      if (avoid) rects = rects.concat(avoid);
+    function fit(ctx, text, maxW) {
+      text = String(text);
+      if (maxW <= 8) return '';
+      if (ctx.measureText(text).width <= maxW) return text;
+      while (text.length > 1 && ctx.measureText(text + '.').width > maxW) text = text.slice(0, -1);
+      return text + '.';
+    }
+    function dialSpot(L, W, H, dpr, hudBox, toCss) {
+      var r = W < 480 ? 20 : 24;
+      var cands = [[W - r - 14, r + 16], [r + 14, H - 52], [W - r - 14, H - 64], [r + 14, r + 16]];
+      var rects = [hudBox];
+      for (var id in L.towns) { var t = L.towns[id], a = toCss(t.terr.x, t.terr.y - 30), b = toCss(t.terr.x + t.terr.w, t.terr.y + t.terr.h + 16); rects.push([a[0], a[1], b[0], b[1]]); }
+      if (L.commons) { var c0 = toCss(L.commons.x, L.commons.y - 30), c1 = toCss(L.commons.x + L.commons.w, L.commons.y + L.commons.h + 12); rects.push([c0[0], c0[1], c1[0], c1[1]]); }
       var best = cands[0], bd = -Infinity;
       cands.forEach(function (c) {
         var d = Infinity;

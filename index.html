@@ -322,6 +322,10 @@ select { padding-right: 8px; cursor: pointer; }
 .lg-arc { width: 18px; height: 3px; border-radius: 2px; background: var(--crit); display: inline-block; }
 .lg-group { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; min-width: 0; }
 .lg-pip { background: var(--dot-owner); border-radius: 1px; width: 6px; height: 6px; }
+.lg-sw { display: inline-block; width: 26px; height: 9px; border-radius: 2px; background: linear-gradient(90deg, var(--tint-1) 0 20%, var(--tint-2) 20% 40%, var(--tint-3) 40% 60%, var(--tint-4) 60% 80%, var(--tint-5) 80%); }
+.dial-ends { display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-faint); margin-top: 2px; }
+.dial-ends span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legend .btn-toggle[aria-pressed="true"], .story-controls .btn-toggle[aria-pressed="true"] { border-color: var(--signal); color: var(--text); }
 .seg-map button { height: 26px; min-width: 0; padding: 0 9px; font-size: 11.5px; }
 
 /* ---------- nation cards ---------- */
@@ -384,9 +388,9 @@ select { padding-right: 8px; cursor: pointer; }
 .spark-area { fill: var(--tint); opacity: .12; }
 .spark-end { fill: var(--tint); }
 
-.dials { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.dials { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; padding-top: 8px; border-top: 1px solid var(--line); }
 .dial { min-width: 0; }
-.dial-label { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.dial-label { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 .dial-bar { height: 4px; background: var(--surface-3); border-radius: 2px; margin-top: 4px; position: relative; }
 .dial-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--text-dim); border-radius: 2px; }
 
@@ -533,7 +537,8 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
 
 /* ---------- story mode ---------- */
 .story { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 12px; }
-.story-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
+.story-controls { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; justify-content: center; }
+.story-controls .btn-sm { padding: 0 9px; }
 .story-frame {
   --tint: var(--tint-1);
   /* --story-h is the room left under the controls, set by ui.js; the frame keeps 9:16 inside it */
@@ -610,8 +615,8 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
   .q-opts { grid-template-columns: 1fr; }
   .charts { grid-template-columns: 1fr; }
   .story-frame { min-width: 0; width: min(100%, calc(var(--story-h, 100vh) * 9 / 16)); }
-  /* the pixel world needs a taller stage on phones to fit at a whole-number scale */
-  #mapHome .map-wrap.is-pixel { aspect-ratio: 4 / 5; max-height: none; }
+  /* the pixel field needs a taller stage on phones to show every town at a whole-number scale */
+  #mapHome .map-wrap.is-pixel { aspect-ratio: 3 / 4; max-height: none; }
   .hl-banner { top: 10px; padding: 8px 11px 9px; }
   .hl-text { font-size: 15px; }
   .hl-banner .kicker { font-size: 10px; }
@@ -647,7 +652,7 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
     </div>
     <div class="tb-clock" aria-live="off"><span class="yr" id="clockYear">Year 1</span><span class="rd" id="clockRound">Round 0</span></div>
     <div class="tb-spacer"></div>
-    <div class="tb-seed">Seed <b id="seedVal">42</b></div>
+    <div class="tb-seed" title="Same number = same story.">Seed <b id="seedVal">42</b></div>
     <div class="tb-group">
       <button id="resetBtn" class="btn" type="button">Reset</button>
       <button id="storyBtn" class="btn btn-toggle" type="button" aria-pressed="false">Story mode</button>
@@ -686,15 +691,18 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
           <span><i class="lg-dot lg-follow"></i>A viewer's citizen</span>
           <span><i class="lg-arc"></i>Tension</span>
         </div>
+        <button type="button" class="btn btn-sm btn-toggle" id="cineBtn" aria-pressed="false" hidden title="When something big happens, the camera moves in on that town for a few seconds.">Zoom to events</button>
         <div class="lg-group" id="lgPixel" aria-label="Map legend" hidden>
-          <span>Casual clothes: worker</span>
-          <span>Smart clothes: owner</span>
-          <span><i class="lg-dot lg-pip"></i>Gold pip, suit: elite</span>
+          <span><i class="lg-sw"></i>Roof, flag and ground colour: which nation</span>
+          <span>Robot at the hall: AI governor</span>
+          <span>Person in a suit: human-like governor</span>
+          <span>Gold crown: you</span>
           <span>Angry bubble: protesting</span>
           <span>Tear: unhappy</span>
-          <span><i class="lg-dot lg-follow"></i>Named, ringed: a viewer's citizen</span>
-          <span>Boat: emigrating</span>
-          <span><i class="lg-arc"></i>Tension</span>
+          <span>Suitcase on the road: moving away</span>
+          <span>Stumps and mud: the shared forest is running out</span>
+          <span><i class="lg-arc"></i>Dotted line: tension between two nations</span>
+          <span><i class="lg-dot lg-follow"></i>Ringed: a viewer's citizen</span>
         </div>
       </div>
       <div class="cards" id="cards"></div>
@@ -724,9 +732,10 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
 
   <section class="story" id="story" hidden aria-label="Story mode">
     <div class="story-controls">
-      <span class="flabel" id="storyPickLabel">Story nation</span>
+      <span class="flabel" id="storyPickLabel">Follow</span>
       <div class="nation-pick" id="storyPick" role="group" aria-labelledby="storyPickLabel" style="margin:0"></div>
-      <button class="btn btn-sm" type="button" id="storyExit">Exit story mode</button>
+      <button class="btn btn-sm btn-toggle" type="button" id="storyCineBtn" aria-pressed="true" hidden title="When something big happens, the camera moves in on that town for a few seconds.">Zoom</button>
+      <button class="btn btn-sm" type="button" id="storyExit" aria-label="Exit story mode">Exit</button>
     </div>
     <div class="story-frame" id="storyFrame">
       <div class="story-top"><span class="brand-name">AI <em>Nation</em></span><span class="mono" id="storyClock"></span></div>

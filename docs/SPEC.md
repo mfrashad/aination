@@ -26,11 +26,13 @@ Do not touch files you do not own. Never use `alert/confirm/prompt`. Wrap all lo
 ```js
 GovSim.VERSION                      // "0.1.0"
 GovSim.POLICIES                     // [{id,label,area,kind:'range'|'toggle',min,max,step,default,unit,description}]
-GovSim.SYSTEMS                      // {id:{label,dials:{ownership,allocation,concentration,oversight},policies:{...},safeguards:{...},blurb}}
+GovSim.SYSTEMS                      // {id:{label,short,dials:{ownership,allocation,concentration,oversight},policies:{...},safeguards:{...},blurb}}
 GovSim.SCENARIOS                    // [{id,title,hook,description,config}]  ready-made, viral-friendly setups
 GovSim.GOVERNOR_TYPES               // ['aligned_ai','human_persona','human_player']
+GovSim.GOVERNOR_LABELS              // {aligned_ai:'AI governor', human_persona:'Human-like governor', human_player:'You'}
+GovSim.NATION_PRESETS               // [{name,emblem,colorKey}] for n1..n5, in order
 GovSim.EVENT_TYPES                  // string[]
-GovSim.METRICS                      // [{id,label,unit,better:'up'|'down'|null,format}]
+GovSim.METRICS                      // [{id,label,unit,better:'up'|'down'|null,format,help}]
 GovSim.defaultConfig()              // full config object (3 nations)
 GovSim.createWorld(config)          // -> world
 GovSim.restore(snapshotJson)        // -> world
@@ -70,9 +72,10 @@ This is what makes A/B comparison honest: clone a world, change one policy, run 
            escalation:true, coups:true, scarcityShockRound:null },
   traitMix: { selfInterestedShare:0.25 },     // share of citizens (and persona pool) who are strongly self-interested
   nations: [{
-    id:'n1', name:'Aurelia', system:'social_democracy',
+    id:'n1', name:'Sunbay', system:'social_democracy',
+    emblem:'sun', colorKey:'gold',   // set by nation index in the normalized config (see Names)
     population:60, nuclear:false,
-    governor:{ type:'aligned_ai', name:'ARBITER-1', goal:'welfare',      // goals: welfare|growth|equality|stay_in_power
+    governor:{ type:'aligned_ai', name:'Bolt', goal:'welfare',           // goals: welfare|growth|equality|stay_in_power
                traits:{greed:0.05, ambition:0.1, honesty:0.95, fairness:0.9} },   // human_persona: sampled from traitMix if omitted
     policies:{},                // overrides on top of system defaults
     safeguards:{}               // overrides: charter, constitution, auditor, elections, freePress, termLimits
@@ -82,7 +85,7 @@ This is what makes A/B comparison honest: clone a world, change one policy, run 
 
 Systems to ship: `free_market`, `social_democracy`, `market_socialism`, `central_planning`, `cooperative` (no governor power).
 Dials are 0..1: ownership (0 private .. 1 state), allocation (0 market .. 1 plan), concentration, oversight.
-Use fictional nation names only (Aurelia, Kestrel Union, Veridia, Norhaven, Sable Coast). No real countries or people.
+Use fictional nation names only. No real countries or people. See "Names and labels" below.
 
 ### State (shape the UI relies on)
 
@@ -92,7 +95,7 @@ Use fictional nation names only (Aurelia, Kestrel Union, Veridia, Norhaven, Sabl
   commons:{stock, capacity},                 // shared global resource
   tension:{ 'n1|n2': 0..100 }, doomsday: 0..100,    // 100 = strike happened
   nations:[{
-    id, name, system, dials, alive, nuclear, treasury, debt,
+    id, name, emblem, colorKey, system, dials, alive, nuclear, treasury, debt,
     governor:{ name, type, goal, traits, inOffice, termsServed, wealth, bribesTaken,
                mood:'calm'|'pressured'|'scheming'|'defiant'|'panicked',
                privateThought, publicStatement },      // short strings regenerated each round; the gap is the content
@@ -108,7 +111,58 @@ Use fictional nation names only (Aurelia, Kestrel Union, Veridia, Norhaven, Sabl
 ```
 
 `highlight:true` marks clip-worthy moments (first bribe accepted, coup, election refused, strike, collapse).
-`text` is a finished, human-readable sentence with names in it.
+`text` is a finished, human-readable sentence with names in it (see "Viewer copy" below).
+
+### Names and labels (viewer-facing; ids never change)
+
+Audience: a 15-year-old watching a 30-second clip must know who is who and what just happened.
+
+| Index | Nation | `emblem` | `colorKey` |
+| --- | --- | --- | --- |
+| n1 | Sunbay | sun | gold |
+| n2 | Mapleton | leaf | teal |
+| n3 | Stonehill | mountain | rose |
+| n4 | Pinevale | tree | violet |
+| n5 | Coralport | shell | moss |
+
+`emblem` and `colorKey` are assigned by nation index in the normalized config and copied to state. Every
+shipped scenario uses the names in this order, so a nation's name, emblem and colour always match.
+
+Systems (`label` / `short`): free_market "Free market" / "Market"; social_democracy "Market + safety net" /
+"Safety net"; market_socialism "Public-owned firms" / "Public-owned"; central_planning "State-run" / "State-run";
+cooperative "Self-run co-op" / "Co-op". Each `blurb` is one or two plain sentences.
+
+Governor types (`GovSim.GOVERNOR_LABELS`): aligned_ai "AI governor", human_persona "Human-like governor",
+human_player "You".
+
+Governor names: AI governors use Bolt, Nova, Chip, Echo, Pixel, Spark, Byte, Orbit (default by nation index; a
+successor takes the next unused name). Human-like governors use short first names (Maya, Leo, Sara, Omar, Nina,
+Ben, Tara, Ivan, Lily, Sam, Zoe, Raj, Emma, Kai, Ana, Tom, Mei, Noah, Aya, Max). No surnames, no numbers. No two
+living governors share a name, and no name repeats in a run until its pool runs out (`state.usedNames`). Names are
+drawn only with the seeded PRNG. Citizens and lobbyists use one first name from a pool of 80, plus an initial
+("Ayu K.") only when someone alive already has that name.
+
+Metric labels: welfare "Wellbeing", gini "Inequality", poverty "Poverty", unemployment "Out of work", inflation
+"Price rises", corruption "Corruption", trust "Trust", honestyGap "Lies", powerIndex "Power grab", shortage "Empty
+shelves", emigrated "People who left", debtRatio "Debt". Each metric has a one-line `help`.
+
+### Viewer copy
+
+Applies to event `text`, `publicStatement`, `privateThought`, decision prompts, options and hints, policy labels
+and descriptions, metric labels and help, scenario titles, hooks and descriptions, `overReason` and
+`collapseReason`:
+
+- Short, active sentences, name first: "Governor Leo cuts business tax in Mapleton from 15% to 11%." At most two
+  sentences and 30 words per event.
+- Governors are "Governor Maya" in text, never their type. A human player is "Your government".
+- Everyday words, no economics jargon (tested: capital flight, Gini, nationalisation, misreport, surveillance,
+  commons, liquidity, fiscal, monetary, GDP). The shared resource is "the shared forest and lake".
+- Rounded, concrete numbers: "1 in 5 goods cannot be found", "on track to double in a year". Money is shown as
+  months or years of a worker's pay (median income), never raw internal units.
+- `privateThought` and `publicStatement` are one first-person sentence each. Private lines use true numbers,
+  public lines use published numbers, so a governor who is hiding something visibly says one thing and thinks
+  another.
+- No em dashes, no emoji.
 
 ### Mechanics (every policy must be able to backfire)
 
@@ -188,6 +242,25 @@ Layout concept: a situation-room map table. The map is the hero; controls live i
 - **Map (hero, canvas or SVG):** each nation is a stylised territory with its citizens as dots, coloured by class
   and dimmed by mood; protesters pulse; emigrants travel between nations; tension draws as arcs between
   nations; a small doomsday dial when escalation is on; followers' citizens are ringed and labelled.
+  The optional **pixel view** (`pixelmap.js`, needs the local atlas) is a bird's-eye RTS-style field: one
+  continuous plateau holding every nation's town (2 to 5) plus the shared forest and lake in the middle.
+  Each town is a compact cluster (two homes or state blocks and the hall in the back row, market or depot
+  pieces in front) around a paved plaza with a flag in the nation colour carrying its emblem. Roofs, flag,
+  hall banners, name tag and a soft dashed territory are in the nation colour (`colorKey` gold, teal, rose,
+  violet, moss; emblem sun, leaf, mountain, tree, shell; both read from state, with index fallbacks). Dirt
+  roads run from every town gate to a ring road around the forest, with a checkpoint hut where each road leaves
+  its territory. The lake shrinks to mud and trees turn to stumps and dead trees as the commons stock falls.
+  Emigrants walk the roads to the other town carrying a suitcase; protesters gather at the hall with placards
+  and bubbles; the governor stands under the flag (robot for the AI governor, person in a suit for the
+  human-like one, crowned person for the player). Overlays: a corner HUD with one row per nation (colour chip
+  with emblem, governor type icon, name, governor name, and Wellbeing / Trust / Corruption bars); short action
+  tags over a town from one event-type table (`PixelMap.TAGS`, unknown types show nothing); tension as a
+  dotted glowing line on the ground between territories, with sandbags and a barrier at 70 and above; the
+  doomsday dial. A fallen town is greyed, burning, flag down. Layout: a landscape or a portrait template
+  (picked by stage aspect; Story mode always portrait), at the largest whole-number device-pixel scale at
+  which the whole field fits (no fractional scaling ever; if nothing fits at 1, a camera pans between towns).
+  "Zoom to events" (on by default in Story mode, off elsewhere, never with reduced motion): on a highlight
+  the camera steps to a closer whole-number zoom on that town, holds, and returns to the whole field.
 - **Nation cards (one per nation):** governor portrait (generated SVG glyph, distinct per governor type), type
   badge, mood, the public statement and the private thought side by side, key meters with sparklines
   (welfare, inequality, corruption, trust, treasury), system dials.
@@ -202,7 +275,9 @@ Layout concept: a situation-room map table. The map is the hero; controls live i
     (the operator can also enact now). Show shared/local mode honestly.
   - *Govern:* when a nation is `human_player`, pending decisions appear here and as an inline banner.
 - **Story mode:** a toggle that reframes the stage to a 9:16 column (map, one big caption of the latest highlight,
-  three meters, and the settings stamped at the bottom) for screen recording.
+  and the settings stamped at the bottom) for screen recording. In the pixel view the whole field shows in its
+  portrait arrangement and the chosen nation's HUD row is picked out (the HUD carries the meters). In the
+  chart view, three meters for the chosen nation show under the caption. The art credit stays visible.
 - Persistent footer line: "Simulation, not prediction." plus engine version and seed.
 
 Design direction (decided, follow it): dark-first, deep ink-navy ground like a lit map table; nations get muted
