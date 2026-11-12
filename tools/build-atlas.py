@@ -6,7 +6,7 @@ Modern Interiors and Modern UI packs (limezu.itch.io), plus the owner's own Lime
 Those files may not be redistributed, so this script cuts only the sprites the app draws out of YOUR
 copy of the library and packs them into:
 
-    assets/atlas.png    one packed sprite sheet (16 px tiles)
+    assets/atlas.png    one packed sprite sheet (8 px field cells: the library's 16 px art, halved)
     assets/atlas.json   frame rects, animations, anchors, tile size
 
 `assets/` is gitignored. Never commit it. Without it the app falls back to the vector map.
@@ -18,6 +18,10 @@ Usage:
 The library layout expected is the owner's indexed clone: `limezu/` (the unzipped packs), `custom/`
 (pack "my", 16x16 folder) and `characters/` (built cast sheets at 32 px). Needs Pillow.
 Output is deterministic: the same library gives byte-identical files.
+
+The map is a zoomed-out field (small towns on a big plain), so every sprite is cut from the 16 px art and
+halved with nearest-neighbour sampling (a whole-number factor: crisp, never blurred). Flags and emblems are
+drawn in code by pixelmap.js, never cut from any flag image.
 """
 import hashlib
 import json
@@ -33,7 +37,7 @@ except ImportError:  # pragma: no cover
 REPO = Path(__file__).resolve().parent.parent
 ROOT = Path(os.environ.get('PIXEL_ROOT') or (REPO.parent / 'pixel-assets')).resolve()
 OUT = REPO / 'assets'
-TILE = 16
+TILE = 8          # field cell in art px (the 16 px library art, halved)
 
 EXT = 'limezu/exteriors/Modern_Exteriors_16x16/'
 SORT = EXT + 'ME_Theme_Sorter_16x16/'
@@ -74,6 +78,17 @@ def crop(rel, x, y, w, h):
     return img(rel).crop((x, y, x + w, y + h))
 
 
+def half(im):
+    """Whole-number 2x downscale, nearest neighbour. Odd sizes are padded at the top / right first, so the
+    bottom (the feet line) stays put."""
+    w, h = im.width + (im.width & 1), im.height + (im.height & 1)
+    if (w, h) != im.size:
+        pad = Image.new('RGBA', (w, h))
+        pad.alpha_composite(im, (0, h - im.height))
+        im = pad
+    return im.resize((w // 2, h // 2), Image.NEAREST)
+
+
 def trim(im):
     bb = im.getbbox()
     return (im.crop(bb), bb) if bb else (im, (0, 0, im.width, im.height))
@@ -108,20 +123,44 @@ def add_strip(name, rel, fw, fh, n, fps, y=0, anchor=None, src=None, first=0, st
     SOURCES.append('%s <- %s' % (name, src or rel))
 
 
-def single(name, rel, anchor='bottom', meta=None, src=None, do_trim=True):
+def single(name, rel, anchor='bottom', meta=None, src=None, do_trim=True, halve=True):
     im = img(rel)
     if do_trim:
         im, _ = trim(im)
+    if halve:
+        im = half(im)
     a = [im.width // 2, im.height] if anchor == 'bottom' else anchor
     add(name, im, a, meta, src or rel)
 
 
-# Nation colours: the map's own vivid versions of the five cartographic tints (ochre, teal, rose,
-# slate-violet, moss). Roofs are recoloured to these at build time; pixelmap.js uses the same values.
-NATION_HSV = {
-    'gold': (40, 0.70, 0.90), 'teal': (174, 0.70, 0.68), 'rose': (345, 0.55, 0.86),
-    'violet': (256, 0.46, 0.82), 'moss': (90, 0.60, 0.70), 'grey': (215, 0.08, 0.62),
+# Nation colours follow the system (engine SYSTEM_IDENTITY colorKey): blue free market, yellow safety net,
+# amber-orange public-owned firms, red state-run, emerald co-op. Each has three shades for nations that share
+# a system: '' (base), '1' (lighter), '2' (darker). Roofs are recoloured to these at build time; pixelmap.js
+# reads the same values from atlas.json (nationHsv). The old index keys stay as fallbacks for the UI.
+BASE_HSV = {
+    'blue': (213, 0.70, 0.92), 'yellow': (52, 0.74, 1.00), 'orange': (31, 0.94, 0.96),
+    'red': (356, 0.84, 0.80), 'green': (150, 0.70, 0.76),
 }
+
+
+def shade_hsv(hsv, k):
+    h, sat, v = hsv
+    if k == 1:
+        return (h, round(sat * 0.55, 3), round(min(1.0, v * 1.08 + 0.04), 3))
+    if k == 2:
+        return (h, round(min(1.0, sat * 1.04), 3), round(v * 0.62, 3))
+    return hsv
+
+
+NATION_HSV = {}
+for _k, _v in BASE_HSV.items():
+    for _s in (0, 1, 2):
+        NATION_HSV[_k + ('' if _s == 0 else str(_s))] = shade_hsv(_v, _s)
+NATION_HSV['grey'] = (215, 0.08, 0.62)
+ROOF_KEYS = sorted(NATION_HSV)
+# legacy keys: colours only (no sprites); pixelmap maps them onto the nearest new key
+LEGACY_HSV = {'gold': (40, 0.70, 0.90), 'teal': (174, 0.70, 0.68), 'rose': (345, 0.55, 0.86),
+              'violet': (256, 0.46, 0.82), 'moss': (90, 0.60, 0.70)}
 
 
 def recolour(im, key, test, flat=False):
@@ -156,12 +195,13 @@ def is_brick(h, s, v):
 
 def terrain():
     tf = SORT + '1_Terrains_and_Fences_16x16.png'
-    # Autotile blocks: a 3x3 rounded rect (outer corners + edges + fill) and a 2x2 inner-corner block.
-    add('ter.dirt', crop(tf, 0, 480, 80, 48), src='ext/terrains-and-fences dirt path on grass (autotile)')
-    add('ter.pond', crop(tf, 0, 560, 80, 48), src='ext/terrains-and-fences pond in grass (autotile)')
+    # Autotile blocks (halved to 8 px cells): a 3x3 rounded rect (outer corners + edges + fill) and a 2x2
+    # inner-corner block.
+    add('ter.dirt', half(crop(tf, 0, 480, 80, 48)), src='ext/terrains-and-fences dirt path on grass (autotile, halved)')
+    add('ter.pond', half(crop(tf, 0, 560, 80, 48)), src='ext/terrains-and-fences pond in grass (autotile, halved)')
     # Plateau: grass with a dirt cliff skirt (9-slice: 3 columns, rows top/mid/bottom-3).
-    add('ter.island', crop(tf, 128, 672, 48, 80), src='ext/terrains-and-fences grass cliff plateau')
-    add('ter.herring', crop(tf, 432, 144, 32, 32), src='ext/terrains-and-fences herringbone paving')
+    add('ter.island', half(crop(tf, 128, 672, 48, 80)), src='ext/terrains-and-fences grass cliff plateau (halved)')
+    add('ter.herring', half(crop(tf, 432, 144, 32, 32)), src='ext/terrains-and-fences herringbone paving (halved)')
 
 
 def gov_hall():
@@ -188,9 +228,9 @@ def gov_hall():
         out = im.copy()
         out.paste(top, (0, 0))
         return out
-    for key in NATION_HSV:
-        add('bld.hall.' + key, roof(hall, key), [40, 96], {'door': [40, 94]})
-        add('bld.block.' + key, roof(block, key), [40, 96], {'door': [40, 94]})
+    for key in ROOF_KEYS:
+        add('bld.hall.' + key, half(roof(hall, key)), [20, 48], {'door': [20, 47]})
+        add('bld.block.' + key, half(roof(block, key)), [20, 48], {'door': [20, 47]})
     SOURCES.append('bld.hall.* <- ext/generic-building modular pieces (composed civic hall, roof recoloured per nation)')
     SOURCES.append('bld.block.* <- ext/generic-building modular pieces (composed, greyed state block, roof recoloured per nation)')
 
@@ -201,10 +241,18 @@ def buildings():
     # Two neutral-walled cottages, roofs recoloured per nation (and grey for fallen towns)
     for var, num in (('a', 5), ('b', 7)):
         base, _ = trim(img(villa % num))
-        for key in NATION_HSV:
-            add('bld.house.%s.%s' % (key, var), recolour(base, key, is_red), [base.width // 2, base.height],
-                {'door': [42, 74]})
-        SOURCES.append('bld.house.*.%s <- ext/villas/%d (Toy_House_%d, roof recoloured per nation)' % (var, num, num))
+        for key in ROOF_KEYS:
+            im = half(recolour(base, key, is_red))
+            add('bld.house.%s.%s' % (key, var), im, [im.width // 2, im.height], {'door': [21, 37]})
+        SOURCES.append('bld.house.*.%s <- ext/villas/%d (Toy_House_%d, roof recoloured per nation, halved)' % (var, num, num))
+    # the co-op's shared barn: a garden storage shed, roof in the nation colour
+    barn, _ = trim(img(S + '17_Garden_Singles_16x16/ME_Singles_Garden_16x16_Red_Brown_Wood_Storage.png'))
+    for key in ROOF_KEYS:
+        im = half(recolour(barn, key, is_red))
+        add('bld.barn.' + key, im, [im.width // 2, im.height])
+    SOURCES.append('bld.barn.* <- ext/garden Red_Brown_Wood_Storage (roof recoloured per nation, halved)')
+    single('prop.bed', S + '17_Garden_Singles_16x16/ME_Singles_Garden_16x16_Sprout_Square_Bench.png', src='ext/garden sprout square bench (halved)')
+    single('prop.lemon', S + '7_Villas_Singles_16x16/ME_Singles_Villas_16x16_Lemonade_Stand_2.png', src='ext/villas lemonade stand 2 (halved)')
     single('bld.depot', S + '6_Garage_Sales_Singles_16x16/ME_Singles_Garage_Sales_16x16_Building_2_Door_1.png', src='ext/garage-sales/1-7')
     single('bld.stall1', CUSTOM + 'kopitiam/hawker-stall-noodle.png', src='my/kopitiam/hawker-stall-noodle (custom pack)')
     single('bld.stall2', CUSTOM + 'kopitiam/hawker-stall-drinks.png', src='my/kopitiam/hawker-stall-drinks (custom pack)')
@@ -250,8 +298,15 @@ def props():
 
 
 def animated():
-    add_strip('fx.boom', ANIM + 'Landmine_Explosion_vfx_16x16.png', 48, 48, 11, 12, anchor=[24, 40])
-    add_strip('fx.fire', ANIM + 'Campfire_16x16.png', 16, 32, 6, 10, anchor=[8, 31])
+    for name, rel, fw, fh, n, fps, anc in (('fx.boom', ANIM + 'Landmine_Explosion_vfx_16x16.png', 48, 48, 11, 12, [12, 20]),
+                                           ('fx.fire', ANIM + 'Campfire_16x16.png', 16, 32, 6, 10, [4, 15])):
+        names = []
+        for i in range(n):
+            nm = '%s#%d' % (name, i)
+            add(nm, half(crop(rel, i * fw, 0, fw, fh)), anc)
+            names.append(nm)
+        ANIMS[name] = {'frames': names, 'fps': fps}
+        SOURCES.append('%s <- %s (halved)' % (name, rel))
 
 
 def emotes():
@@ -298,9 +353,9 @@ def characters():
             for d, dname in enumerate(DIRS):
                 names = []
                 for i in range(6):
-                    fr = sheet.crop((d * 96 + i * 16, y, d * 96 + i * 16 + 16, y + 32))
+                    fr = half(sheet.crop((d * 96 + i * 16, y, d * 96 + i * 16 + 16, y + 32)))
                     nm = 'ch.%s.%s.%s#%d' % (key, anim, dname, i)
-                    add(nm, fr, [8, 31])
+                    add(nm, fr, [4, 15])
                     names.append(nm)
                 ANIMS['ch.%s.%s.%s' % (key, anim, dname)] = {'frames': names, 'fps': 8 if anim == 'walk' else 6}
         SOURCES.append('ch.%s <- %s' % (key, src))
@@ -361,7 +416,9 @@ def main():
         'anims': ANIMS,
         'meta': META,
         'chars': {k: {'src': (v[0] + ':' + str(v[1]))} for k, v in CHARS},
-        'nationHsv': NATION_HSV,
+        'nationHsv': dict(NATION_HSV, **LEGACY_HSV),
+        'roofKeys': ROOF_KEYS,
+        'scale': 0.5,
     }
     with open(OUT / 'atlas.json', 'w') as f:
         json.dump(data, f, sort_keys=True, separators=(',', ':'))

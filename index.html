@@ -24,6 +24,11 @@
   --tint-3: #c27a87;
   --tint-4: #8a86c4;
   --tint-5: #8ba366;
+  --nat-blue: #4d8fea; --nat-blue-1: #9cc0f2; --nat-blue-2: #2c5799;
+  --nat-yellow: #f2d54a; --nat-yellow-1: #f6e8a2; --nat-yellow-2: #a8902a;
+  --nat-orange: #f39a26; --nat-orange-1: #f6c88e; --nat-orange-2: #a35c12;
+  --nat-red: #cf3442; --nat-red-1: #e8959c; --nat-red-2: #861b27;
+  --nat-green: #39c18a; --nat-green-1: #98dfc0; --nat-green-2: #22784f;
   --dot-worker: #c8d3e0;
   --dot-owner: #e7c27c;
   --dot-elite: #fbf8f1;
@@ -69,6 +74,11 @@
     --tint-3: #a85568;
     --tint-4: #5f5ba6;
     --tint-5: #5f7a3c;
+    --nat-blue: #2d6ccb; --nat-blue-1: #6c98d8; --nat-blue-2: #1d4483;
+    --nat-yellow: #b39110; --nat-yellow-1: #cdb658; --nat-yellow-2: #7a6410;
+    --nat-orange: #d0710c; --nat-orange-1: #e2a466; --nat-orange-2: #87470a;
+    --nat-red: #b82633; --nat-red-1: #d47a83; --nat-red-2: #741520;
+    --nat-green: #1d9867; --nat-green-1: #62bb95; --nat-green-2: #145e3f;
     --dot-worker: #34445b;
     --dot-owner: #8f5d0c;
     --dot-elite: #0c1624;
@@ -107,6 +117,11 @@
   --tint-3: #a85568;
   --tint-4: #5f5ba6;
   --tint-5: #5f7a3c;
+  --nat-blue: #2d6ccb; --nat-blue-1: #6c98d8; --nat-blue-2: #1d4483;
+  --nat-yellow: #b39110; --nat-yellow-1: #cdb658; --nat-yellow-2: #7a6410;
+  --nat-orange: #d0710c; --nat-orange-1: #e2a466; --nat-orange-2: #87470a;
+  --nat-red: #b82633; --nat-red-1: #d47a83; --nat-red-2: #741520;
+  --nat-green: #1d9867; --nat-green-1: #62bb95; --nat-green-2: #145e3f;
   --dot-worker: #34445b;
   --dot-owner: #8f5d0c;
   --dot-elite: #0c1624;
@@ -322,7 +337,7 @@ select { padding-right: 8px; cursor: pointer; }
 .lg-arc { width: 18px; height: 3px; border-radius: 2px; background: var(--crit); display: inline-block; }
 .lg-group { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; min-width: 0; }
 .lg-pip { background: var(--dot-owner); border-radius: 1px; width: 6px; height: 6px; }
-.lg-sw { display: inline-block; width: 26px; height: 9px; border-radius: 2px; background: linear-gradient(90deg, var(--tint-1) 0 20%, var(--tint-2) 20% 40%, var(--tint-3) 40% 60%, var(--tint-4) 60% 80%, var(--tint-5) 80%); }
+.lg-sw { display: inline-block; width: 26px; height: 9px; border-radius: 2px; background: linear-gradient(90deg, var(--nat-blue) 0 20%, var(--nat-yellow) 20% 40%, var(--nat-orange) 40% 60%, var(--nat-red) 60% 80%, var(--nat-green) 80%); }
 .dial-ends { display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-faint); margin-top: 2px; }
 .dial-ends span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .legend .btn-toggle[aria-pressed="true"], .story-controls .btn-toggle[aria-pressed="true"] { border-color: var(--signal); color: var(--text); }
@@ -353,7 +368,9 @@ select { padding-right: 8px; cursor: pointer; }
 .card-head { display: flex; gap: 11px; align-items: center; min-width: 0; }
 .portrait { flex: none; width: 52px; height: 52px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; color: var(--tint); }
 .card-id { min-width: 0; flex: 1; }
-.card-name { font-family: var(--font-display); font-weight: 700; font-size: 18px; line-height: 1.1; margin: 0; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-name { font-family: var(--font-display); font-weight: 700; font-size: 18px; line-height: 1.1; margin: 0; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 7px; }
+.card-name > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.card-emb { flex: none; width: 20px; height: 20px; }
 .card-sys { font-size: 12px; color: var(--text-dim); margin: 1px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gov-line { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; font-size: 12px; min-width: 0; }
 .gov-line > * { flex: none; }
@@ -693,7 +710,7 @@ fieldset.q legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom
         </div>
         <button type="button" class="btn btn-sm btn-toggle" id="cineBtn" aria-pressed="false" hidden title="When something big happens, the camera moves in on that town for a few seconds.">Zoom to events</button>
         <div class="lg-group" id="lgPixel" aria-label="Map legend" hidden>
-          <span><i class="lg-sw"></i>Roof, flag and ground colour: which nation</span>
+          <span><i class="lg-sw"></i>Colour and flag: the system a nation runs</span>
           <span>Robot at the hall: AI governor</span>
           <span>Person in a suit: human-like governor</span>
           <span>Gold crown: you</span>

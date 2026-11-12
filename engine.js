@@ -137,7 +137,7 @@
     { id: 'capital_controls', label: 'Limits on moving money out', area: 'Borders', kind: 'range', min: 0, max: 100, step: 1, default: 10, unit: 'index', description: 'Rules that stop money and people leaving. The rich cannot move money abroad, but investors stay away and black markets grow.' },
     { id: 'military_spending', label: 'Army spending', area: 'Security', kind: 'range', min: 0, max: 20, step: 0.5, default: 5, unit: '% budget', description: 'Share of the budget for the army. Scares rivals, but strong generals may try a takeover.' }
   ];
-  // how each policy reads inside a sentence ("Governor Leo cuts <phrase> in Mapleton ...")
+  // how each policy reads inside a sentence ("Governor Leo cuts <phrase> in Freeland ...")
   var POLICY_PHRASE = {
     income_tax_top: 'the tax on the rich', income_tax_base: 'income tax', wealth_tax: 'the wealth tax', corporate_tax: 'business tax',
     vat: 'sales tax', carbon_tax: 'the pollution tax', ubi: 'free money for all', targeted_aid: 'help for the poor',
@@ -246,11 +246,43 @@
     'diplomatic_protest', 'sanctions', 'mobilisation', 'threat', 'nuclear_strike', 'deescalation', 'collapse', 'game_over'
   ];
 
-  // nations: names, map emblems and colour keys go together by nation index (n1..n5), so the
-  // audience learns "Sunbay = sun = gold" once and it holds in every scenario
-  var NATION_NAMES = ['Sunbay', 'Mapleton', 'Stonehill', 'Pinevale', 'Coralport'];
-  var NATION_EMBLEMS = ['sun', 'leaf', 'mountain', 'tree', 'shell'];
-  var NATION_COLORS = ['gold', 'teal', 'rose', 'violet', 'moss'];
+  // nations: a nation's name, colour and emblem follow its SYSTEM, as instantly readable political shorthand
+  // (fictional archetypes: no real countries, flags, parties or leaders). Nations that share a system get
+  // the next name on the list, the same emblem and a different shade (0, 1, 2) of the system colour.
+  // `emblemNeutral` replaces the emblem when world.symbols is 'neutral'.
+  var SYSTEM_IDENTITY = {
+    free_market: { names: ['Freeland', 'Liberty Bay', 'Goldcoast'], colorKey: 'blue', emblem: 'coin' },
+    social_democracy: { names: ['Nordland', 'Fjordholm', 'Welby'], colorKey: 'yellow', emblem: 'rose' },
+    market_socialism: { names: ['Dragonland', 'Jade Republic', 'Lotus Bay'], colorKey: 'orange', emblem: 'star' },
+    central_planning: { names: ['Redgrad', 'Volgania', 'Ironburg'], colorKey: 'red', emblem: 'hammer_sickle', emblemNeutral: 'star_gear' },
+    cooperative: { names: ['Coopville', 'Commonfield', 'Hands Hollow'], colorKey: 'green', emblem: 'people' }
+  };
+  var SYMBOL_MODES = ['classic', 'neutral'];
+  function symbolsOf(world) { return world && world.symbols === 'neutral' ? 'neutral' : 'classic'; }
+  function emblemFor(sysId, symbols) {
+    var id = SYSTEM_IDENTITY[sysId] || SYSTEM_IDENTITY.social_democracy;
+    return symbols === 'neutral' && id.emblemNeutral ? id.emblemNeutral : id.emblem;
+  }
+  // identities for a list of nation configs, in order. Pure: no randomness, so the seeded stream is untouched.
+  // A nation keeps an explicit `name` (unless nameSource is 'system'); colour and emblem always come from its system.
+  function deriveIdentities(list, symbols) {
+    list = Array.isArray(list) ? list : [];
+    var sysOf = function (nc) { return nc && SYSTEM_IDENTITY[nc.system] ? nc.system : 'social_democracy'; };
+    var explicit = function (nc) { return nc && nc.nameSource !== 'system' && typeof nc.name === 'string' && nc.name.trim() ? nc.name.trim() : null; };
+    var taken = [], rank = {};
+    list.forEach(function (nc) { var e = explicit(nc); if (e) taken.push(e); });
+    return list.map(function (nc) {
+      var sys = sysOf(nc), id = SYSTEM_IDENTITY[sys], k = rank[sys] || 0;
+      rank[sys] = k + 1;
+      var name = explicit(nc), source = name ? 'config' : 'system';
+      if (!name) {
+        for (var j = 0; j < id.names.length && !name; j++) { var c = id.names[(k + j) % id.names.length]; if (taken.indexOf(c) < 0) name = c; }
+        for (var q = 0; !name; q++) { var c2 = ['North ', 'South ', 'East ', 'West '][q % 4] + id.names[q % id.names.length]; if (taken.indexOf(c2) < 0) name = c2; }
+        taken.push(name);
+      }
+      return { name: name, nameSource: source, colorKey: id.colorKey, shade: k % 3, emblem: emblemFor(sys, symbols), system: sys };
+    });
+  }
   // governors: short, memorable, never numbered. Names are not reused in a run until a pool runs out.
   var AI_NAMES = ['Bolt', 'Nova', 'Chip', 'Echo', 'Pixel', 'Spark', 'Byte', 'Orbit'];
   var GOV_NAMES = ['Maya', 'Leo', 'Sara', 'Omar', 'Nina', 'Ben', 'Tara', 'Ivan', 'Lily', 'Sam', 'Zoe', 'Raj', 'Emma', 'Kai', 'Ana', 'Tom', 'Mei', 'Noah', 'Aya', 'Max'];
@@ -524,7 +556,7 @@
 
   // ============================================================================ config
   function defaultWorld() {
-    return { commons: true, migration: true, capitalFlight: true, lobbying: true, governorSalary: true, escalation: true, coups: true, scarcityShockRound: null, randomShocks: true, initialTension: null };
+    return { commons: true, migration: true, capitalFlight: true, lobbying: true, governorSalary: true, escalation: true, coups: true, scarcityShockRound: null, randomShocks: true, initialTension: null, symbols: 'classic' };
   }
 
   function defaultConfig() {
@@ -533,11 +565,11 @@
       world: defaultWorld(),
       traitMix: { selfInterestedShare: 0.25 },
       nations: [
-        { id: 'n1', name: 'Sunbay', system: 'social_democracy', population: 60, nuclear: false,
+        { id: 'n1', system: 'social_democracy', population: 60, nuclear: false,
           governor: { type: 'aligned_ai', name: 'Bolt', goal: 'welfare', traits: { greed: 0.05, ambition: 0.1, honesty: 0.95, fairness: 0.9 } }, policies: {}, safeguards: {} },
-        { id: 'n2', name: 'Mapleton', system: 'free_market', population: 60, nuclear: false,
+        { id: 'n2', system: 'free_market', population: 60, nuclear: false,
           governor: { type: 'human_persona', name: 'Leo', goal: 'growth', traits: { greed: 0.55, ambition: 0.6, honesty: 0.45, fairness: 0.35 } }, policies: {}, safeguards: {} },
-        { id: 'n3', name: 'Stonehill', system: 'central_planning', population: 60, nuclear: false,
+        { id: 'n3', system: 'central_planning', population: 60, nuclear: false,
           governor: { type: 'human_persona', name: 'Maya', goal: 'stay_in_power', traits: { greed: 0.4, ambition: 0.8, honesty: 0.35, fairness: 0.4 } }, policies: {}, safeguards: {} }
       ]
     };
@@ -597,11 +629,13 @@
       nations: []
     };
     out.traitMix.selfInterestedShare = clamp01(fin(out.traitMix.selfInterestedShare, 0.25));
+    out.world.symbols = symbolsOf(out.world);
     var R = { rng: hashSeed(String(out.seed) + '|config') };
     var list = Array.isArray(c.nations) && c.nations.length ? c.nations : base.nations;
     // names given in the config are reserved first, so generated names never clash with them
     var taken = [];
     list.slice(0, 5).forEach(function (nc) { if (nc && nc.governor && typeof nc.governor.name === 'string' && nc.governor.name) taken.push(nc.governor.name); });
+    var idents = deriveIdentities(list.slice(0, 5).map(function (nc) { return nc || {}; }), out.world.symbols);
     list.slice(0, 5).forEach(function (nc, i) {
       nc = nc || {};
       var sysId = SYSTEMS[nc.system] ? nc.system : 'social_democracy';
@@ -617,18 +651,17 @@
       var type = GOVERNOR_TYPES.indexOf(g.type) >= 0 ? g.type : 'aligned_ai';
       var fallback = type === 'aligned_ai' ? ALIGNED_TRAITS : type === 'human_player' ? { greed: 0.5, ambition: 0.5, honesty: 0.5, fairness: 0.5 } : null;
       var traits = g.traits ? normTraits(g.traits, fallback || samplePersonaTraits(R, out.traitMix)) : (fallback ? Object.assign({}, fallback) : samplePersonaTraits(R, out.traitMix));
-      var name = typeof g.name === 'string' && g.name ? g.name : (type === 'aligned_ai' ? nextAiName(i, taken, taken) : type === 'human_player' ? 'You' : personaName(R, taken));
-      if (taken.indexOf(name) < 0) taken.push(name);
+      var gname = typeof g.name === 'string' && g.name ? g.name : (type === 'aligned_ai' ? nextAiName(i, taken, taken) : type === 'human_player' ? 'You' : personaName(R, taken));
+      if (taken.indexOf(gname) < 0) taken.push(gname);
       var goal = GOALS.indexOf(g.goal) >= 0 ? g.goal : defaultGoal(type, traits);
       out.nations.push({
         id: typeof nc.id === 'string' && nc.id ? nc.id : 'n' + (i + 1),
-        name: typeof nc.name === 'string' && nc.name ? nc.name : NATION_NAMES[i % NATION_NAMES.length],
-        emblem: NATION_EMBLEMS[i % NATION_EMBLEMS.length],
-        colorKey: NATION_COLORS[i % NATION_COLORS.length],
+        name: idents[i].name, nameSource: idents[i].nameSource,
+        emblem: idents[i].emblem, colorKey: idents[i].colorKey, shade: idents[i].shade,
         system: sysId,
         population: clamp(int(nc.population || 60), 8, 300),
         nuclear: !!nc.nuclear,
-        governor: { type: type, name: name, goal: goal, traits: traits, brain: typeof g.brain === 'string' ? g.brain : DEFAULT_BRAIN[type] },
+        governor: { type: type, name: gname, goal: goal, traits: traits, brain: typeof g.brain === 'string' ? g.brain : DEFAULT_BRAIN[type] },
         policies: policies,
         safeguards: safeguards,
         lockedPolicies: Array.isArray(nc.lockedPolicies) ? nc.lockedPolicies.filter(function (p) { return POLICY_MAP[p]; }) : [],
@@ -648,37 +681,37 @@
     {
       id: 'three_systems', title: 'Three countries, three rulebooks',
       hook: 'Same people, three different rulebooks. Which country cracks first?',
-      description: 'Sunbay has a market with a safety net, run by an AI. Mapleton is a free market run by a governor chasing growth. Stonehill is state-run by a governor who wants to stay forever.',
+      description: '{n1} has a market with a safety net, run by an AI. {n2} is a free market run by a governor chasing growth. {n3} is state-run by a governor who wants to stay forever.',
       config: defaultConfig()
     },
     {
       id: 'tax_the_rich_90', title: 'Tax the rich 90%: what happens?',
       hook: 'A 90% tax on the rich. Does the money come in, or walk out the door?',
-      description: 'Sunbay taxes the rich at 90% and lets money leave freely. Mapleton keeps the tax at 45%. Stonehill also taxes at 90% but stops money leaving. Nobody can change these rules.',
+      description: '{n1} taxes the rich at 90% and lets money leave freely. {n2} keeps the tax at 45%. {n3} also taxes at 90% but stops money leaving. Nobody can change these rules.',
       config: scen([
-        { id: 'n1', name: 'Sunbay', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Bolt', goal: 'equality' }, policies: { income_tax_top: 90, wealth_tax: 5, capital_controls: 0, immigration_open: 80 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] },
-        { id: 'n2', name: 'Mapleton', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Nova', goal: 'equality' }, policies: { income_tax_top: 45, wealth_tax: 1, capital_controls: 0, immigration_open: 80 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] },
-        { id: 'n3', name: 'Stonehill', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Chip', goal: 'equality' }, policies: { income_tax_top: 90, wealth_tax: 5, capital_controls: 85, immigration_open: 30 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] }
+        { id: 'n1', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Bolt', goal: 'equality' }, policies: { income_tax_top: 90, wealth_tax: 5, capital_controls: 0, immigration_open: 80 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] },
+        { id: 'n2', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Nova', goal: 'equality' }, policies: { income_tax_top: 45, wealth_tax: 1, capital_controls: 0, immigration_open: 80 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] },
+        { id: 'n3', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Chip', goal: 'equality' }, policies: { income_tax_top: 90, wealth_tax: 5, capital_controls: 85, immigration_open: 30 }, lockedPolicies: ['income_tax_top', 'wealth_tax', 'capital_controls'] }
       ], { escalation: false })
     },
     {
       id: 'ubi_experiment', title: 'Free money for everyone: who pays?',
       hook: 'Everyone gets free cash. Paid for by taxes, by printing money, or not at all.',
-      description: 'Sunbay gives everyone free money and raises taxes to pay for it. Mapleton pays the same by printing money. Stonehill pays nothing. Nobody can change these rules.',
+      description: '{n1} gives everyone free money and raises taxes to pay for it. {n2} pays the same by printing money. {n3} pays nothing. Nobody can change these rules.',
       config: scen([
-        { id: 'n1', name: 'Sunbay', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Bolt', goal: 'welfare' }, policies: { ubi: 30, income_tax_top: 55, income_tax_base: 28, vat: 18, money_printing: 0 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] },
-        { id: 'n2', name: 'Mapleton', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Nova', goal: 'welfare' }, policies: { ubi: 30, money_printing: 10 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] },
-        { id: 'n3', name: 'Stonehill', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Chip', goal: 'welfare' }, policies: { ubi: 0, money_printing: 0 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] }
+        { id: 'n1', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Bolt', goal: 'welfare' }, policies: { ubi: 30, income_tax_top: 55, income_tax_base: 28, vat: 18, money_printing: 0 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] },
+        { id: 'n2', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Nova', goal: 'welfare' }, policies: { ubi: 30, money_printing: 10 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] },
+        { id: 'n3', system: 'social_democracy', governor: { type: 'aligned_ai', name: 'Chip', goal: 'welfare' }, policies: { ubi: 0, money_printing: 0 }, lockedPolicies: ['ubi', 'money_printing', 'income_tax_base', 'vat'] }
       ], { escalation: false })
     },
     {
       id: 'who_corrupts_first', title: 'Who takes the first bribe?',
       hook: 'One AI and two human-like governors. Same rich lobbyists, same envelopes of cash.',
-      description: 'Three free-market countries with no government inspectors. An AI governor, a greedy governor and a fairly honest one get the same bribe offers.',
+      description: 'Three free-market countries, {n1}, {n2} and {n3}, with no government inspectors. An AI governor, a greedy governor and a fairly honest one get the same bribe offers.',
       config: scen([
-        { id: 'n1', name: 'Sunbay', system: 'free_market', governor: { type: 'aligned_ai', name: 'Bolt', goal: 'growth' }, safeguards: { auditor: false } },
-        { id: 'n2', name: 'Mapleton', system: 'free_market', governor: { type: 'human_persona', name: 'Max', goal: 'growth', traits: { greed: 0.85, ambition: 0.7, honesty: 0.2, fairness: 0.3 } }, safeguards: { auditor: false } },
-        { id: 'n3', name: 'Stonehill', system: 'free_market', governor: { type: 'human_persona', name: 'Sara', goal: 'growth', traits: { greed: 0.35, ambition: 0.45, honesty: 0.65, fairness: 0.6 } }, safeguards: { auditor: false } }
+        { id: 'n1', system: 'free_market', governor: { type: 'aligned_ai', name: 'Bolt', goal: 'growth' }, safeguards: { auditor: false } },
+        { id: 'n2', system: 'free_market', governor: { type: 'human_persona', name: 'Max', goal: 'growth', traits: { greed: 0.85, ambition: 0.7, honesty: 0.2, fairness: 0.3 } }, safeguards: { auditor: false } },
+        { id: 'n3', system: 'free_market', governor: { type: 'human_persona', name: 'Sara', goal: 'growth', traits: { greed: 0.35, ambition: 0.45, honesty: 0.65, fairness: 0.6 } }, safeguards: { auditor: false } }
       ], { lobbying: true, escalation: false })
     },
     {
@@ -686,32 +719,39 @@
       hook: 'An election in two years. Trust is already on the floor.',
       description: 'All three governments start with very low trust and an election coming. Two power-hungry governors, and one country with no constitution. Who accepts defeat?',
       config: scen([
-        { id: 'n1', name: 'Sunbay', system: 'market_socialism', governor: { type: 'human_persona', name: 'Ivan', goal: 'stay_in_power', traits: { greed: 0.6, ambition: 0.9, honesty: 0.25, fairness: 0.25 } }, safeguards: { constitution: false, freePress: false }, initial: { trust: 28 }, policies: { military_spending: 10 } },
-        { id: 'n2', name: 'Mapleton', system: 'social_democracy', governor: { type: 'human_persona', name: 'Nina', goal: 'stay_in_power', traits: { greed: 0.45, ambition: 0.8, honesty: 0.4, fairness: 0.35 } }, initial: { trust: 30 } },
-        { id: 'n3', name: 'Stonehill', system: 'free_market', governor: { type: 'aligned_ai', name: 'Chip', goal: 'welfare' }, safeguards: { constitution: false, auditor: false, freePress: false }, initial: { trust: 30 } }
+        { id: 'n1', system: 'market_socialism', governor: { type: 'human_persona', name: 'Ivan', goal: 'stay_in_power', traits: { greed: 0.6, ambition: 0.9, honesty: 0.25, fairness: 0.25 } }, safeguards: { constitution: false, freePress: false }, initial: { trust: 28 }, policies: { military_spending: 10 } },
+        { id: 'n2', system: 'social_democracy', governor: { type: 'human_persona', name: 'Nina', goal: 'stay_in_power', traits: { greed: 0.45, ambition: 0.8, honesty: 0.4, fairness: 0.35 } }, initial: { trust: 30 } },
+        { id: 'n3', system: 'free_market', governor: { type: 'aligned_ai', name: 'Chip', goal: 'welfare' }, safeguards: { constitution: false, auditor: false, freePress: false }, initial: { trust: 30 } }
       ], { coups: true })
     },
     {
       id: 'red_button', title: 'Who presses the red button?',
       hook: 'Three nuclear powers, one border fight, and leaders who hate backing down.',
-      description: 'All three countries have nuclear weapons. Sunbay and Mapleton start with a tense border fight. A disaster hits in year five.',
+      description: 'All three countries have nuclear weapons. {n1} and {n2} start with a tense border fight. A disaster hits in year five.',
       config: scen([
-        { id: 'n1', name: 'Sunbay', system: 'free_market', nuclear: true, governor: { type: 'human_persona', name: 'Omar', goal: 'stay_in_power', traits: { greed: 0.4, ambition: 0.85, honesty: 0.35, fairness: 0.25 } }, policies: { military_spending: 12, tariffs: 15 } },
-        { id: 'n2', name: 'Mapleton', system: 'central_planning', nuclear: true, governor: { type: 'human_persona', name: 'Tara', goal: 'stay_in_power', traits: { greed: 0.35, ambition: 0.9, honesty: 0.3, fairness: 0.2 } }, policies: { military_spending: 16 } },
-        { id: 'n3', name: 'Stonehill', system: 'social_democracy', nuclear: true, governor: { type: 'aligned_ai', name: 'Chip', goal: 'welfare' } }
+        { id: 'n1', system: 'free_market', nuclear: true, governor: { type: 'human_persona', name: 'Omar', goal: 'stay_in_power', traits: { greed: 0.4, ambition: 0.85, honesty: 0.35, fairness: 0.25 } }, policies: { military_spending: 12, tariffs: 15 } },
+        { id: 'n2', system: 'central_planning', nuclear: true, governor: { type: 'human_persona', name: 'Tara', goal: 'stay_in_power', traits: { greed: 0.35, ambition: 0.9, honesty: 0.3, fairness: 0.2 } }, policies: { military_spending: 16 } },
+        { id: 'n3', system: 'social_democracy', nuclear: true, governor: { type: 'aligned_ai', name: 'Chip', goal: 'welfare' } }
       ], { escalation: true, scarcityShockRound: 20, initialTension: { 'n1|n2': 60, 'n1|n3': 20, 'n2|n3': 25 } })
     },
     {
       id: 'play_governor', title: 'You are the governor',
-      hook: 'You run Sunbay. Budgets, bribes, crises and elections land on your desk.',
-      description: 'You run Sunbay. Change the rules in the Policies tab and answer decisions as they come. An AI and a human-like governor run the neighbours.',
+      hook: 'You run {n1}. Budgets, bribes, crises and elections land on your desk.',
+      description: 'You run {n1}. Change the rules in the Policies tab and answer decisions as they come. An AI and a human-like governor run the neighbours.',
       config: scen([
-        { id: 'n1', name: 'Sunbay', system: 'social_democracy', governor: { type: 'human_player', name: 'You', goal: 'welfare' } },
-        { id: 'n2', name: 'Mapleton', system: 'free_market', governor: { type: 'human_persona', name: 'Leo', goal: 'growth', traits: { greed: 0.55, ambition: 0.6, honesty: 0.45, fairness: 0.35 } } },
-        { id: 'n3', name: 'Stonehill', system: 'cooperative', governor: { type: 'aligned_ai', name: 'Chip', goal: 'equality' } }
+        { id: 'n1', system: 'social_democracy', governor: { type: 'human_player', name: 'You', goal: 'welfare' } },
+        { id: 'n2', system: 'free_market', governor: { type: 'human_persona', name: 'Leo', goal: 'growth', traits: { greed: 0.55, ambition: 0.6, honesty: 0.45, fairness: 0.35 } } },
+        { id: 'n3', system: 'cooperative', governor: { type: 'aligned_ai', name: 'Chip', goal: 'equality' } }
       ])
     }
   ];
+
+  // scenario texts name the nations by their derived (system-based) names
+  SCENARIOS.forEach(function (sc) {
+    var ids = deriveIdentities(sc.config.nations, 'classic');
+    var fill = function (t) { return typeof t === 'string' ? t.replace(/\{n(\d)\}/g, function (m, k) { var x = ids[+k - 1]; return x ? x.name : m; }) : t; };
+    sc.title = fill(sc.title); sc.hook = fill(sc.hook); sc.description = fill(sc.description);
+  });
 
   // ============================================================================ state init
   function makeCitizen(S, nation, cls, mix, opts) {
@@ -772,7 +812,7 @@
   function initNation(S, cfg, nc) {
     var sys = SYSTEMS[nc.system];
     var n = {
-      id: nc.id, name: nc.name, emblem: nc.emblem, colorKey: nc.colorKey, system: nc.system, dials: Object.assign({}, sys.dials), alive: true, nuclear: nc.nuclear,
+      id: nc.id, name: nc.name, emblem: nc.emblem, colorKey: nc.colorKey, shade: nc.shade || 0, system: nc.system, dials: Object.assign({}, sys.dials), alive: true, nuclear: nc.nuclear,
       treasury: 8, debt: 0,
       governor: makeGovernorState(nc.governor),
       policies: Object.assign({}, nc.policies), safeguards: Object.assign({}, nc.safeguards),
@@ -2335,6 +2375,14 @@
       }
       return n.policies[policyId];
     };
+    // swap emblems live (classic hammer and sickle vs a star with a gear). Display only: no event, no randomness.
+    W.setSymbols = function (mode) {
+      mode = mode === 'neutral' ? 'neutral' : 'classic';
+      W.config.world.symbols = mode;
+      S.nations.forEach(function (n) { n.emblem = emblemFor(n.system, mode); });
+      W.config.nations.forEach(function (nc) { nc.emblem = emblemFor(nc.system, mode); });
+      return mode;
+    };
     W.setSafeguard = function (nationId, key, on) {
       var n = findNation(S, nationId); if (!n || SAFEGUARD_KEYS.indexOf(key) < 0) return null;
       on = !!on; if (n.safeguards[key] === on) return on;
@@ -2411,7 +2459,12 @@
     SCENARIOS: SCENARIOS,
     GOVERNOR_TYPES: GOVERNOR_TYPES,
     GOVERNOR_LABELS: GOVERNOR_LABELS,
-    NATION_PRESETS: NATION_NAMES.map(function (nm, i) { return { name: nm, emblem: NATION_EMBLEMS[i], colorKey: NATION_COLORS[i] }; }),
+    SYSTEM_IDENTITY: SYSTEM_IDENTITY,
+    SYMBOL_MODES: SYMBOL_MODES,
+    deriveIdentities: deriveIdentities,
+    emblemFor: emblemFor,
+    // deprecated: one preset per system, in SYSTEMS order (identity now follows the system, never the index)
+    NATION_PRESETS: Object.keys(SYSTEM_IDENTITY).map(function (k) { var id = SYSTEM_IDENTITY[k]; return { system: k, name: id.names[0], emblem: id.emblem, colorKey: id.colorKey }; }),
     GOALS: GOALS,
     SAFEGUARDS: SAFEGUARD_KEYS,
     EVENT_TYPES: EVENT_TYPES,

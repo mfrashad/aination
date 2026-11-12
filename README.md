@@ -24,7 +24,11 @@ Then open http://localhost:8765. There is no build step and there are no depende
 
 - **Live map:** one shared field of towns (or a chart view), protests, people walking to other nations, tension lines, a doomsday dial.
 - **Governor cards:** what each ruler says in public next to what it privately thinks.
-- **Five countries:** Sunbay, Mapleton, Stonehill, Pinevale and Coralport, each with its own emblem and colour.
+- **Nations that wear their system:** a nation's name, colour and flag follow its economic system, as instant
+  political shorthand: Freeland (blue, coin) for the free market, Nordland (yellow, rose) for the safety net,
+  Dragonland (amber, star) for public-owned firms, Redgrad (red, hammer and sickle) for state-run and Coopville
+  (green, linked people) for the co-op. All fictional. Nations that share a system get the next name on its list
+  and a lighter or darker shade. A "Neutral symbols" switch swaps the hammer and sickle for a star with a gear.
 - **Three governor types:** an AI governor (Bolt, Nova, Chip...), a human-like governor (Maya, Leo, Sara...),
   and you.
 - **Five systems** set by four dials (ownership, allocation, power concentration, oversight): Free market,
@@ -40,13 +44,15 @@ Then open http://localhost:8765. There is no build step and there are no depende
 
 ## Pixel map (optional, bring your own art)
 
-The map can render as a pixel-art world seen from above, like an RTS map. All the towns sit on one shared
-field: each nation is a small town in its own colour (roofs, flag with its emblem, banners, territory), joined
-by dirt roads to a shared forest and lake that shrinks as people use it up. Citizens walk around their plaza,
-protest at the hall, and walk the roads with a suitcase when they emigrate. A corner panel lists every nation
-with three small bars (wellbeing, trust, corruption), and short tags such as BRIBE or PEOPLE LEAVING pop over a
-town when something happens. "Zoom to events" moves the camera in on a town for a big moment (on by default in
-Story mode).
+The map can render as a pixel-art world seen from above, like an RTS minimap come to life. All the towns sit
+on one big open field: each nation is a small town (a hall and a ring of little houses or system buildings
+around a plaza) with one tall flag carrying its emblem, roofs and territory in its colour, joined by dirt roads
+to a shared forest and lake that shrinks as people use it up. At this zoom one small figure stands for a few
+citizens; they walk around their plaza, protest at the hall with placards, and leave in a line down the road
+with suitcases when they emigrate. Tension shows as a glowing dotted line along the road between two towns.
+A panel in a reserved corner lists every nation with its emblem and three neutral bars (wellbeing, trust,
+corruption), and short tags such as BRIBE or PEOPLE LEAVING pop over a town when something happens. "Zoom to
+events" steps the camera in on a town for a big moment (on by default in Story mode).
 
 The art is LimeZu's Modern Exteriors, Interiors and UI packs (limezu.itch.io) plus a LimeZu-style custom pack.
 **That art is licensed and is not in this repo.** Without it, the app uses the vector map, and nothing else
@@ -59,15 +65,17 @@ PIXEL_ROOT=/path/to/pixel-assets python3 tools/build-atlas.py   # default: ../pi
 ```
 
 It needs Python 3 with Pillow. It cuts only the sprites the map draws into `assets/atlas.png` and
-`assets/atlas.json` (about 140 KB and 70 KB), recolouring roofs into the five nation colours. The output is
+`assets/atlas.json` (about 100 KB and 75 KB), halving the 16 px art (nearest neighbour, never blurred) and
+recolouring roofs into the five system colours in three shades. Flags and emblems are drawn in code. The output is
 deterministic. `assets/` is gitignored: never commit it or publish it anywhere public. When the atlas is
 present, a "Map: Pixel / Chart" toggle appears under the map and "Pixel art: LimeZu (limezu.itch.io)" is
 credited in the footer and in the Story frame.
 
 The field is always drawn at a whole-number device-pixel scale, so it stays crisp. It picks a landscape or a
-portrait arrangement by the shape of the stage. With 3 nations the whole field fits on a 1440x900 laptop, in
-the 9:16 Story frame and on a 400 px phone (at 2x). With 5 nations it fits on a laptop and on a 2x phone or
-Story frame at a smaller scale; on a small 1x Story frame a camera pans between towns instead.
+portrait arrangement by the shape of the stage, and a corner for the panel that never covers a town. A town
+is about 128 CSS px wide on a 1440x900 laptop. With 3 to 5 nations the whole field fits on a laptop, in the
+9:16 Story frame (540x960 at 1x or 2x) and on a 400 px phone at 2x; only a very small 1x Story frame (400 px
+wide) pans between towns instead.
 
 ## How it is built
 

@@ -30,7 +30,9 @@ GovSim.SYSTEMS                      // {id:{label,short,dials:{ownership,allocat
 GovSim.SCENARIOS                    // [{id,title,hook,description,config}]  ready-made, viral-friendly setups
 GovSim.GOVERNOR_TYPES               // ['aligned_ai','human_persona','human_player']
 GovSim.GOVERNOR_LABELS              // {aligned_ai:'AI governor', human_persona:'Human-like governor', human_player:'You'}
-GovSim.NATION_PRESETS               // [{name,emblem,colorKey}] for n1..n5, in order
+GovSim.SYSTEM_IDENTITY              // {systemId:{names:[...],colorKey,emblem,emblemNeutral?}}  identity follows the system
+GovSim.deriveIdentities(nations, symbols) // -> [{name,nameSource,colorKey,shade,emblem,system}] (pure, no randomness)
+GovSim.NATION_PRESETS               // deprecated: one {system,name,emblem,colorKey} per system
 GovSim.EVENT_TYPES                  // string[]
 GovSim.METRICS                      // [{id,label,unit,better:'up'|'down'|null,format,help}]
 GovSim.defaultConfig()              // full config object (3 nations)
@@ -49,6 +51,7 @@ world.resolveDecision(id, optionId) // answer one; step() proceeds once none are
 world.setPolicy(nationId, policyId, value, source)   // source: 'operator'|'law'|'governor'. Emits policy_changed / law_enacted
 world.setSafeguard(nationId, key, bool)
 world.setGovernor(nationId, {type,name,traits,goal,brain})
+world.setSymbols('classic'|'neutral')  // display only: swaps emblems live, no event, no randomness
 world.addCitizen(nationId, {name, traits, ownerId, isFollower:true}) // -> citizen; emits follower_joined
 world.injectShock(kind, nationId?)  // 'scarcity'|'pandemic'|'boom'|'border_crisis'
 world.snapshot()                    // -> JSON string (config + state + rng state); restore() continues identically
@@ -69,11 +72,12 @@ This is what makes A/B comparison honest: clone a world, change one policy, run 
   roundsPerYear: 4,
   maxRounds: 200,
   world: { commons:true, migration:true, capitalFlight:true, lobbying:true, governorSalary:true,
-           escalation:true, coups:true, scarcityShockRound:null },
+           escalation:true, coups:true, scarcityShockRound:null,
+           symbols:'classic' },               // 'neutral': state-run flies a star with a gear (world.setSymbols)
   traitMix: { selfInterestedShare:0.25 },     // share of citizens (and persona pool) who are strongly self-interested
   nations: [{
-    id:'n1', name:'Sunbay', system:'social_democracy',
-    emblem:'sun', colorKey:'gold',   // set by nation index in the normalized config (see Names)
+    id:'n1', system:'social_democracy',  // name optional: derived from the system unless given
+    // normalized: name, nameSource:'system'|'config', colorKey, shade:0|1|2, emblem (all from the system)
     population:60, nuclear:false,
     governor:{ type:'aligned_ai', name:'Bolt', goal:'welfare',           // goals: welfare|growth|equality|stay_in_power
                traits:{greed:0.05, ambition:0.1, honesty:0.95, fairness:0.9} },   // human_persona: sampled from traitMix if omitted
@@ -95,7 +99,7 @@ Use fictional nation names only. No real countries or people. See "Names and lab
   commons:{stock, capacity},                 // shared global resource
   tension:{ 'n1|n2': 0..100 }, doomsday: 0..100,    // 100 = strike happened
   nations:[{
-    id, name, emblem, colorKey, system, dials, alive, nuclear, treasury, debt,
+    id, name, emblem, colorKey, shade, system, dials, alive, nuclear, treasury, debt,
     governor:{ name, type, goal, traits, inOffice, termsServed, wealth, bribesTaken,
                mood:'calm'|'pressured'|'scheming'|'defiant'|'panicked',
                privateThought, publicStatement },      // short strings regenerated each round; the gap is the content
@@ -117,16 +121,21 @@ Use fictional nation names only. No real countries or people. See "Names and lab
 
 Audience: a 15-year-old watching a 30-second clip must know who is who and what just happened.
 
-| Index | Nation | `emblem` | `colorKey` |
-| --- | --- | --- | --- |
-| n1 | Sunbay | sun | gold |
-| n2 | Mapleton | leaf | teal |
-| n3 | Stonehill | mountain | rose |
-| n4 | Pinevale | tree | violet |
-| n5 | Coralport | shell | moss |
+A nation's identity follows its SYSTEM, as instantly readable political shorthand (fictional archetypes:
+no real countries, flags, parties or leaders anywhere):
 
-`emblem` and `colorKey` are assigned by nation index in the normalized config and copied to state. Every
-shipped scenario uses the names in this order, so a nation's name, emblem and colour always match.
+| System | Names (first, then for more nations on the same system) | `colorKey` | `emblem` |
+| --- | --- | --- | --- |
+| free_market | Freeland, Liberty Bay, Goldcoast | blue | coin (dollar mark) |
+| social_democracy | Nordland, Fjordholm, Welby | yellow | rose |
+| market_socialism | Dragonland, Jade Republic, Lotus Bay | orange (amber, gold trim) | star (one large, two small) |
+| central_planning | Redgrad, Volgania, Ironburg | red | hammer_sickle (neutral: star_gear) |
+| cooperative | Coopville, Commonfield, Hands Hollow | green | people (linked figures) |
+
+Identity is derived at world creation (pure, no PRNG draws, so numbers never change). A config `name` is kept
+(colour and emblem still come from the system); `nameSource:'system'` in a config means "derive it", so a
+normalized config can be edited (system changed) and re-created. Nations sharing a system get distinct names,
+the same emblem and `shade` 0, 1, 2 (base, lighter, darker). Scenario texts use the derived names.
 
 Systems (`label` / `short`): free_market "Free market" / "Market"; social_democracy "Market + safety net" /
 "Safety net"; market_socialism "Public-owned firms" / "Public-owned"; central_planning "State-run" / "State-run";
@@ -152,7 +161,7 @@ Applies to event `text`, `publicStatement`, `privateThought`, decision prompts, 
 and descriptions, metric labels and help, scenario titles, hooks and descriptions, `overReason` and
 `collapseReason`:
 
-- Short, active sentences, name first: "Governor Leo cuts business tax in Mapleton from 15% to 11%." At most two
+- Short, active sentences, name first: "Governor Leo cuts business tax in Freeland from 15% to 11%." At most two
   sentences and 30 words per event.
 - Governors are "Governor Maya" in text, never their type. A human player is "Your government".
 - Everyday words, no economics jargon (tested: capital flight, Gini, nationalisation, misreport, surveillance,
@@ -242,20 +251,25 @@ Layout concept: a situation-room map table. The map is the hero; controls live i
 - **Map (hero, canvas or SVG):** each nation is a stylised territory with its citizens as dots, coloured by class
   and dimmed by mood; protesters pulse; emigrants travel between nations; tension draws as arcs between
   nations; a small doomsday dial when escalation is on; followers' citizens are ringed and labelled.
-  The optional **pixel view** (`pixelmap.js`, needs the local atlas) is a bird's-eye RTS-style field: one
-  continuous plateau holding every nation's town (2 to 5) plus the shared forest and lake in the middle.
-  Each town is a compact cluster (two homes or state blocks and the hall in the back row, market or depot
-  pieces in front) around a paved plaza with a flag in the nation colour carrying its emblem. Roofs, flag,
-  hall banners, name tag and a soft dashed territory are in the nation colour (`colorKey` gold, teal, rose,
-  violet, moss; emblem sun, leaf, mountain, tree, shell; both read from state, with index fallbacks). Dirt
-  roads run from every town gate to a ring road around the forest, with a checkpoint hut where each road leaves
-  its territory. The lake shrinks to mud and trees turn to stumps and dead trees as the commons stock falls.
-  Emigrants walk the roads to the other town carrying a suitcase; protesters gather at the hall with placards
-  and bubbles; the governor stands under the flag (robot for the AI governor, person in a suit for the
+  The optional **pixel view** (`pixelmap.js`, needs the local atlas) is a zoomed-out bird's-eye field, like an
+  RTS minimap: one big plateau of open grass holding every nation's small town (2 to 5, 128 x 96 art px each)
+  plus the shared forest and lake. Each town is a small hall and a ring of little houses (state blocks and
+  depots for state-run, a shared barn and garden beds for the co-op, stalls for markets) around a compact
+  plaza, with one tall flag as the hero identifier: cloth in the nation colour and shade, emblem drawn in code
+  (at least 14 CSS px wide on a laptop), also repeated on the name tag and the HUD row. Roofs, banners, name
+  tag and a soft dashed territory are in the nation colour (`colorKey` blue, yellow, orange, red, green plus
+  `shade`; old keys map across). The atlas art is the 16 px library art halved. Dirt roads run from every town
+  gate to a ring road around the forest, with a checkpoint hut where each road leaves its territory. At least
+  40% of the field is open ground; towns never touch each other or the edge. The lake shrinks to mud and trees turn to stumps and dead trees as the commons stock falls.
+  One sprite stands for a few citizens (picked by id, so crowds stay proportional). Emigrants leave one at a
+  time, about a second apart, and walk the roads to the other town in a line carrying a suitcase; protesters
+  gather at the hall with placards and bubbles; the governor stands under the flag (robot for the AI governor, person in a suit for the
   human-like one, crowned person for the player). Overlays: a corner HUD with one row per nation (colour chip
-  with emblem, governor type icon, name, governor name, and Wellbeing / Trust / Corruption bars); short action
+  with emblem, governor type icon, name, governor name, and neutral Wellbeing / Trust / Corruption bars labelled
+  by icons, so no bar reads as a nation colour) in a reserved corner that never covers a town, the forest
+  label, a name tag or the dial; short action
   tags over a town from one event-type table (`PixelMap.TAGS`, unknown types show nothing); tension as a
-  dotted glowing line on the ground between territories, with sandbags and a barrier at 70 and above; the
+  dotted glowing line that follows the road between two towns (around the forest), with sandbags and a barrier at 70 and above; the
   doomsday dial. A fallen town is greyed, burning, flag down. Layout: a landscape or a portrait template
   (picked by stage aspect; Story mode always portrait), at the largest whole-number device-pixel scale at
   which the whole field fits (no fractional scaling ever; if nothing fits at 1, a camera pans between towns).
@@ -280,9 +294,10 @@ Layout concept: a situation-room map table. The map is the hero; controls live i
   chart view, three meters for the chosen nation show under the caption. The art credit stays visible.
 - Persistent footer line: "Simulation, not prediction." plus engine version and seed.
 
-Design direction (decided, follow it): dark-first, deep ink-navy ground like a lit map table; nations get muted
-cartographic tints (ochre, teal, rose, slate-violet, moss), never neon. Semantic colours (good / warning /
-critical) are separate from nation tints. Light theme is a cool pale chart-paper, not cream. Fonts:
+Design direction (decided, follow it): dark-first, deep ink-navy ground like a lit map table; nations wear their
+system's stereotype colour (blue, yellow, amber-orange, red, green; tokens `--nat-<key>[-1|-2]`, old `--tint-N`
+kept as fallbacks), bold but not neon. Semantic colours (good / warning / critical) are separate from nation
+tints; where they would sit side by side (the map HUD) the bars are neutral and labelled by icons. Light theme is a cool pale chart-paper, not cream. Fonts:
 Bricolage Grotesque (display), IBM Plex Sans (body), IBM Plex Mono (figures, tabular). Follow the page
 contract in `docs/PAGE_CONTRACT.md` exactly (theme tokens, safe-area gutters, no doctype,
 CDN rules, phone width). Must work at 400 px wide: map on top, cards and panel stack below.

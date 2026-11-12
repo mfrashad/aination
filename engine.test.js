@@ -37,9 +37,9 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
     ['POLICIES', 'SCENARIOS', 'GOVERNOR_TYPES', 'EVENT_TYPES', 'METRICS'].forEach(k => assert(Array.isArray(GovSim[k]), k));
     assert.deepStrictEqual(GovSim.GOVERNOR_TYPES, ['aligned_ai', 'human_persona', 'human_player']);
     assert.deepStrictEqual(GovSim.GOVERNOR_LABELS, { aligned_ai: 'AI governor', human_persona: 'Human-like governor', human_player: 'You' });
-    assert.deepStrictEqual(GovSim.NATION_PRESETS.map(x => x.name), ['Sunbay', 'Mapleton', 'Stonehill', 'Pinevale', 'Coralport']);
-    assert.deepStrictEqual(GovSim.NATION_PRESETS.map(x => x.emblem), ['sun', 'leaf', 'mountain', 'tree', 'shell']);
-    assert.deepStrictEqual(GovSim.NATION_PRESETS.map(x => x.colorKey), ['gold', 'teal', 'rose', 'violet', 'moss']);
+    assert.deepStrictEqual(Object.keys(GovSim.SYSTEM_IDENTITY).sort(), Object.keys(GovSim.SYSTEMS).sort(), 'one identity per system');
+    assert.deepStrictEqual(GovSim.NATION_PRESETS.map(x => x.colorKey), Object.keys(GovSim.SYSTEMS).map(k => GovSim.SYSTEM_IDENTITY[k].colorKey), 'deprecated presets follow systems');
+    assert.strictEqual(typeof GovSim.deriveIdentities, 'function');
     ['createWorld', 'restore', 'registerBrain', 'defaultConfig'].forEach(k => assert.strictEqual(typeof GovSim[k], 'function', k));
     const ids = ['income_tax_top', 'income_tax_base', 'wealth_tax', 'corporate_tax', 'vat', 'carbon_tax', 'ubi', 'targeted_aid', 'healthcare', 'education', 'min_wage', 'price_controls', 'nationalisation', 'tariffs', 'money_printing', 'audit_rate', 'transparency', 'governor_salary', 'immigration_open', 'capital_controls', 'military_spending'];
     assert.deepStrictEqual(GovSim.POLICIES.map(p => p.id).sort(), ids.slice().sort());
@@ -66,7 +66,7 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
     assert('n1|n2' in S.tension);
     const metricKeys = ['gdp', 'welfare', 'gini', 'poverty', 'unemployment', 'inflation', 'corruption', 'trust', 'honestyGap', 'powerIndex', 'population', 'emigrated', 'protestRate', 'taxRevenue', 'priceLevel'];
     S.nations.forEach(n => {
-      ['id', 'name', 'emblem', 'colorKey', 'system', 'dials', 'alive', 'nuclear', 'treasury', 'debt', 'governor', 'policies', 'safeguards', 'metrics', 'history', 'citizens'].forEach(k => assert(k in n, 'nation.' + k));
+      ['id', 'name', 'emblem', 'colorKey', 'shade', 'system', 'dials', 'alive', 'nuclear', 'treasury', 'debt', 'governor', 'policies', 'safeguards', 'metrics', 'history', 'citizens'].forEach(k => assert(k in n, 'nation.' + k));
       ['name', 'type', 'goal', 'traits', 'inOffice', 'termsServed', 'wealth', 'bribesTaken', 'mood', 'privateThought', 'publicStatement'].forEach(k => assert(k in n.governor, 'governor.' + k));
       assert(['calm', 'pressured', 'scheming', 'defiant', 'panicked'].includes(n.governor.mood));
       assert(typeof n.governor.privateThought === 'string' && n.governor.privateThought.length > 5);
@@ -448,11 +448,11 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
 
   await test('names: new nations, short governor names, no digits, no duplicates alive', () => {
     const cfg = GovSim.defaultConfig();
-    assert.deepStrictEqual(GovSim.createWorld(cfg).state.nations.map(n => n.name), ['Sunbay', 'Mapleton', 'Stonehill']);
-    const five = GovSim.normalizeConfig({ nations: [{}, {}, {}, {}, {}] });
-    assert.deepStrictEqual(five.nations.map(n => n.name), ['Sunbay', 'Mapleton', 'Stonehill', 'Pinevale', 'Coralport']);
-    assert.deepStrictEqual(five.nations.map(n => n.emblem), ['sun', 'leaf', 'mountain', 'tree', 'shell']);
-    assert.deepStrictEqual(five.nations.map(n => n.colorKey), ['gold', 'teal', 'rose', 'violet', 'moss']);
+    assert.deepStrictEqual(GovSim.createWorld(cfg).state.nations.map(n => n.name), ['Nordland', 'Freeland', 'Redgrad']);
+    const five = GovSim.normalizeConfig({ nations: ['free_market', 'social_democracy', 'market_socialism', 'central_planning', 'cooperative'].map(system => ({ system })) });
+    assert.deepStrictEqual(five.nations.map(n => n.name), ['Freeland', 'Nordland', 'Dragonland', 'Redgrad', 'Coopville']);
+    assert.deepStrictEqual(five.nations.map(n => n.emblem), ['coin', 'rose', 'star', 'hammer_sickle', 'people']);
+    assert.deepStrictEqual(five.nations.map(n => n.colorKey), ['blue', 'yellow', 'orange', 'red', 'green']);
     assert.strictEqual(new Set(five.nations.map(n => n.governor.name)).size, 5, 'generated governor names are distinct');
     let changes = 0;
     for (const s of GovSim.SCENARIOS) {
@@ -483,6 +483,83 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
     const names = w.state.nations.flatMap(n => n.citizens.map(c => c.name));
     assert.strictEqual(new Set(names).size, names.length, 'citizen names are unique');
     assert(names.some(x => !/\./.test(x)), 'some citizens need no initial');
+  });
+
+  await test('identity follows the system, not the index', () => {
+    const sys = Object.keys(GovSim.SYSTEMS);
+    for (const k of sys) {
+      const id = GovSim.SYSTEM_IDENTITY[k];
+      // same system in any slot gets the same colour and emblem
+      for (let slot = 0; slot < 3; slot++) {
+        const nations = [{ system: 'cooperative' }, { system: 'cooperative' }, { system: 'cooperative' }].map((x, i) => i === slot ? { system: k } : { system: sys.find(o => o !== k) });
+        const n = GovSim.createWorld({ seed: 1, nations }).state.nations[slot];
+        assert.strictEqual(n.colorKey, id.colorKey, k + ' colour in slot ' + slot);
+        assert.strictEqual(n.emblem, id.emblem, k + ' emblem in slot ' + slot);
+        assert.strictEqual(n.name, id.names[0], k + ' name in slot ' + slot);
+      }
+    }
+    // an explicit name is kept, but colour and emblem still come from the system
+    const c = GovSim.normalizeConfig({ nations: [{ name: 'Mira Bay', system: 'central_planning' }, { system: 'free_market' }] });
+    assert.deepStrictEqual([c.nations[0].name, c.nations[0].colorKey, c.nations[0].emblem, c.nations[0].nameSource], ['Mira Bay', 'red', 'hammer_sickle', 'config']);
+    // changing the system of a normalized config (as the Setup tab does) re-derives the identity on restart
+    const cfg = GovSim.createWorld(GovSim.defaultConfig()).config;
+    const draft = JSON.parse(JSON.stringify(cfg)); draft.nations[2].system = 'cooperative';
+    const w2 = GovSim.createWorld(draft);
+    assert.deepStrictEqual([w2.state.nations[2].name, w2.state.nations[2].colorKey, w2.state.nations[2].emblem], ['Coopville', 'green', 'people']);
+    // scenario texts use the derived names
+    const ts = GovSim.SCENARIOS.find(s => s.id === 'three_systems');
+    assert(/Nordland/.test(ts.description) && /Freeland/.test(ts.description) && /Redgrad/.test(ts.description), ts.description);
+    GovSim.SCENARIOS.forEach(s => { [s.title, s.hook, s.description].forEach(t => assert(!/\{n\d\}/.test(t), 'unfilled name in ' + t)); });
+  });
+
+  await test('same-system nations get distinct names and shades', () => {
+    const w = GovSim.createWorld(scenarioConfig('who_corrupts_first', 42));
+    const ns = w.state.nations;
+    assert.deepStrictEqual(ns.map(n => n.name), ['Freeland', 'Liberty Bay', 'Goldcoast']);
+    assert.deepStrictEqual(ns.map(n => n.shade), [0, 1, 2]);
+    assert.deepStrictEqual(ns.map(n => n.emblem), ['coin', 'coin', 'coin']);
+    assert.deepStrictEqual(ns.map(n => n.colorKey), ['blue', 'blue', 'blue']);
+    const four = GovSim.normalizeConfig({ nations: [1, 2, 3, 4].map(() => ({ system: 'cooperative' })) });
+    assert.strictEqual(new Set(four.nations.map(n => n.name)).size, 4, 'four same-system names are distinct: ' + four.nations.map(n => n.name).join(', '));
+    // an explicit name that matches a list name is skipped by the others
+    const t = GovSim.normalizeConfig({ nations: [{ system: 'free_market' }, { system: 'free_market', name: 'Freeland' }] });
+    assert.deepStrictEqual(t.nations.map(n => n.name), ['Liberty Bay', 'Freeland']);
+  });
+
+  await test('neutral symbols swap the hammer and sickle for a star with a gear, live', () => {
+    const cfg = GovSim.defaultConfig();
+    assert.strictEqual(GovSim.normalizeConfig(cfg).world.symbols, 'classic');
+    cfg.world.symbols = 'neutral';
+    const n = GovSim.createWorld(cfg).state.nations;
+    assert.deepStrictEqual(n.map(x => x.emblem), ['rose', 'coin', 'star_gear']);
+    const w = GovSim.createWorld(GovSim.defaultConfig());
+    run(w, 5);
+    const before = JSON.stringify(w.state.nations.map(x => x.history));
+    w.setSymbols('neutral');
+    assert.strictEqual(w.state.nations[2].emblem, 'star_gear');
+    assert.strictEqual(w.config.world.symbols, 'neutral');
+    w.setSymbols('classic');
+    assert.strictEqual(w.state.nations[2].emblem, 'hammer_sickle');
+    assert.strictEqual(JSON.stringify(w.state.nations.map(x => x.history)), before, 'symbols do not touch numbers');
+    // same numbers either way
+    const a = GovSim.createWorld(GovSim.defaultConfig()), b = GovSim.createWorld(Object.assign(GovSim.defaultConfig(), { world: Object.assign(GovSim.defaultConfig().world, { symbols: 'neutral' }) }));
+    run(a, 60); run(b, 60);
+    assert.strictEqual(JSON.stringify(a.state.nations.map(x => x.history)), JSON.stringify(b.state.nations.map(x => x.history)));
+  });
+
+  await test('no real country names in any viewer-facing string', () => {
+    const REAL = ['China', 'Russia', 'Soviet', 'USSR', 'America', 'USA', 'United States', 'Sweden', 'Norway', 'Cuba', 'Korea', 'Vietnam', 'Venezuela'];
+    const strings = staticStrings();
+    Object.values(GovSim.SYSTEM_IDENTITY).forEach(id => strings.push(...id.names, id.emblem, id.emblemNeutral || ''));
+    for (const s of GovSim.SCENARIOS) {
+      const x = runStrings(scenarioConfig(s.id, 42), 120, false);
+      strings.push(...x.out); x.events.forEach(e => strings.push(e.text));
+      GovSim.createWorld(scenarioConfig(s.id, 42)).state.nations.forEach(n => strings.push(n.name));
+    }
+    const hits = [];
+    strings.forEach(t => REAL.forEach(r => { if (new RegExp('\\b' + r + '\\b', 'i').test(String(t))) hits.push(r + ' in "' + t + '"'); }));
+    console.log('       checked ' + strings.length + ' strings');
+    assert.strictEqual(hits.length, 0, hits.slice(0, 5).join('\n'));
   });
 
   // ---------------------------------------------------------------- eyeball output

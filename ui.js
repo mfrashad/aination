@@ -97,8 +97,13 @@
   var SAFEGUARDS = (G && Array.isArray(G.SAFEGUARDS) && G.SAFEGUARDS.length) ? G.SAFEGUARDS : ['charter', 'constitution', 'auditor', 'elections', 'freePress', 'termLimits'];
   var SAFEGUARD_LABEL = { charter: 'Charter', constitution: 'Constitution', auditor: 'Auditor', elections: 'Elections', freePress: 'Free press', termLimits: 'Term limits' };
   var WORLD_LABEL = { commons: 'Shared commons', migration: 'Migration', capitalFlight: 'Capital flight', lobbying: 'Lobbying and bribes', governorSalary: 'Governor salary', escalation: 'Escalation', coups: 'Coups' };
-  var NATION_PRESETS = (G && Array.isArray(G.NATION_PRESETS)) ? G.NATION_PRESETS : [];
-  var COLOR_KEYS = ['gold', 'teal', 'rose', 'violet', 'moss'];
+  // Nation colours follow the system (engine colorKey + shade). Old index keys stay as fallbacks.
+  var NAT_KEYS = ['blue', 'yellow', 'orange', 'red', 'green'];
+  var LEGACY_KEYS = ['gold', 'teal', 'rose', 'violet', 'moss'];
+  var NAT_TOKENS = [];
+  NAT_KEYS.forEach(function (k) { NAT_TOKENS.push('nat-' + k, 'nat-' + k + '-1', 'nat-' + k + '-2'); });
+  [1, 2, 3, 4, 5].forEach(function (i) { NAT_TOKENS.push('tint-' + i); });
+  function symbolsPref() { var v = LS.get('symbols', 'classic'); return v === 'neutral' ? 'neutral' : 'classic'; }
   var SHOCKS = [['scarcity', 'Scarcity'], ['pandemic', 'Pandemic'], ['boom', 'Boom'], ['border_crisis', 'Border crisis']];
   var CARD_METERS = [
     { id: 'welfare' },
@@ -205,9 +210,15 @@
   function st() { return S.world && S.world.state; }
   function nations() { var s = st(); return (s && Array.isArray(s.nations)) ? s.nations : []; }
   function nationById(id) { var ns = nations(); for (var i = 0; i < ns.length; i++) if (ns[i].id === id) return ns[i]; return null; }
-  // A nation's colour: its engine colorKey (gold, teal, rose, violet, moss) picks the tint; else its index.
-  function tintVar(nid) { var i = S.tintIdx[nid]; return 'var(--tint-' + (((i == null ? 0 : i) % 5) + 1) + ')'; }
-  function tintIndexOf(n, i) { var k = n && COLOR_KEYS.indexOf(n.colorKey); return k >= 0 ? k : i; }
+  // A nation's colour token: its engine colorKey (blue, yellow, orange, red, green) and shade (0, 1, 2) pick
+  // --nat-<key>[-<shade>]; an old index key (gold, teal, rose, violet, moss) picks --tint-N; else its index.
+  function tintVar(nid) { return 'var(--' + (S.tintIdx[nid] || 'tint-1') + ')'; }
+  function tintTokenOf(n, i) {
+    var k = n && n.colorKey, sh = n && (n.shade === 1 || n.shade === 2) ? n.shade : 0;
+    if (NAT_KEYS.indexOf(k) >= 0) return 'nat-' + k + (sh ? '-' + sh : '');
+    var j = LEGACY_KEYS.indexOf(k);
+    return 'tint-' + ((j >= 0 ? j : (i || 0) % 5) + 1);
+  }
   function nationName(id) { var n = nationById(id); return n ? n.name : (id || 'World'); }
   function isAlive(n) { return n && n.alive !== false; }
   function hist(n, id) {
@@ -235,7 +246,9 @@
     S.world = w;
     S.scenarioId = scenarioId || S.scenarioId;
     S.tintIdx = {};
-    nations().forEach(function (n, i) { S.tintIdx[n.id] = tintIndexOf(n, i); });
+    // the viewer's "Neutral symbols" choice applies to every world they open
+    try { if (typeof w.setSymbols === 'function' && w.config.world.symbols !== symbolsPref()) w.setSymbols(symbolsPref()); } catch (e) { /* ignore */ }
+    nations().forEach(function (n, i) { S.tintIdx[n.id] = tintTokenOf(n, i); });
     S.treas = {};
     S.feedCount = 0;
     S.lastHighlight = null;
@@ -484,6 +497,7 @@
         label: g('--map-label', '#dfe6ef'), dim: g('--text-dim', '#9eabbd'), faint: g('--text-faint', '#6a7a91'),
         text: g('--text', '#e7ecf3'), surface: g('--surface', '#101a29'),
         tints: [1, 2, 3, 4, 5].map(function (i) { return g('--tint-' + i, '#888'); }),
+        nat: NAT_TOKENS.reduce(function (o, t) { o[t] = g('--' + t, '#888'); return o; }, {}),
         worker: g('--dot-worker', '#ccc'), owner: g('--dot-owner', '#eb7'), elite: g('--dot-elite', '#fff'), dead: g('--dot-dead', '#555'),
         good: g('--good', '#5b8'), warn: g('--warn', '#da5'), crit: g('--crit', '#e65'), signal: g('--signal', '#f97'), water: g('--water', '#47a'),
         shadow: g('--shadow', '#0006'), line2: g('--line-2', '#2b3c59'), focus: g('--focus', '#9cc7ff'), bg2: g('--bg', '#0a111c')
@@ -772,7 +786,7 @@
     },
     drawTerritory: function (n, q, now) {
       if (!q) return;
-      var ctx = this.ctx, T = this.tok, s = this.shape(n.id), tint = T.tints[q.i % 5], dead = n.alive === false;
+      var ctx = this.ctx, T = this.tok, s = this.shape(n.id), tint = T.nat[S.tintIdx[n.id]] || T.tints[q.i % 5], dead = n.alive === false;
       ctx.save();
       this.blobPath(s, q, 1.06);
       ctx.globalAlpha = dead ? 0.05 : 0.1;
@@ -1115,7 +1129,10 @@
           h('span', { class: 'dial-ends' }, h('span', { text: d.lo }), h('span', { text: d.hi }))));
       });
       refs.portrait = h('div', { class: 'portrait' });
-      refs.name = h('h3', { class: 'card-name', text: n.name });
+      refs.name = h('h3', { class: 'card-name' });
+      refs.emb = h('canvas', { class: 'card-emb', width: 36, height: 36, 'aria-hidden': 'true' });
+      refs.nameText = h('span', { text: n.name });
+      refs.name.appendChild(refs.emb); refs.name.appendChild(refs.nameText);
       refs.sys = h('p', { class: 'card-sys' });
       refs.gname = h('span', { class: 'gov-name' });
       refs.gtype = h('span', { class: 'badge badge-type' });
@@ -1177,6 +1194,16 @@
       R.card.classList.toggle('is-dead', n.alive === false);
       var pk = (g.type || '') + '|' + (g.name || '') + '|' + (g.mood || '') + '|' + (num(g.bribesTaken, 0) > 0);
       if (R._pk !== pk) { R.portrait.innerHTML = portraitSVG(g, n.id); R._pk = pk; R.portrait.title = govLabel(g.type); }
+      // the nation's flag emblem on a chip in its colour (redrawn when the symbols or theme change)
+      var ek = (n.emblem || '') + '|' + (S.tintIdx[n.id] || '') + '|' + (MAP.tok && MAP.tok.nat ? MAP.tok.nat[S.tintIdx[n.id]] : '');
+      if (R._ek !== ek && R.emb && R.emb.getContext && window.PixelMap && window.PixelMap.drawEmblem) {
+        R._ek = ek;
+        var ec = R.emb.getContext('2d'), col = (MAP.tok && MAP.tok.nat && MAP.tok.nat[S.tintIdx[n.id]]) || '#888';
+        ec.clearRect(0, 0, 36, 36);
+        ec.fillStyle = col; ec.beginPath(); ec.arc(18, 18, 18, 0, Math.PI * 2); ec.fill();
+        ec.fillStyle = 'rgba(14, 18, 28, 0.6)'; ec.beginPath(); ec.arc(18, 18, 15, 0, Math.PI * 2); ec.fill();
+        window.PixelMap.drawEmblem(ec, n.emblem, 7, 7, 22);
+      }
       R.sys.textContent = systemLabel(n.system) + (g.goal ? ' · goal: ' + (GOAL_LABEL[g.goal] || humanize(g.goal)).toLowerCase() : '');
       R.sys.title = (META.systems[n.system] && META.systems[n.system].blurb) || '';
       R.gname.textContent = g.inOffice === false ? (g.name || 'Governor') + ' (out)' : (g.name || 'Governor');
@@ -1475,7 +1502,10 @@
 
     box.appendChild(h('h4', { text: 'Nations' }));
     box.appendChild(h('p', { class: 'hint', text: 'Edit a draft, then apply. Applying restarts the run from round 0.' }));
+    // a nation's name, colour and emblem follow its system unless the name is typed in
+    var idents = (G && typeof G.deriveIdentities === 'function') ? G.deriveIdentities(d.nations || [], symbolsPref()) : [];
     (d.nations || []).forEach(function (cn, i) {
+      var ident = idents[i] || {};
       cn.governor = cn.governor || { type: 'aligned_ai', goal: 'welfare' };
       cn.safeguards = cn.safeguards || {};
       var pre = 'su-' + i + '-';
@@ -1494,7 +1524,12 @@
       META.goals.forEach(function (k) { goal.appendChild(h('option', { value: k, text: GOAL_LABEL[k] || humanize(k) })); });
       goal.value = cn.governor.goal || 'welfare';
       var gname = h('input', { type: 'text', id: pre + 'gname', value: cn.governor.name || '', maxlength: '24', oninput: function () { cn.governor.name = gname.value; touch(); } });
-      var nname = h('input', { type: 'text', id: pre + 'name', value: cn.name || '', maxlength: '24', oninput: function () { cn.name = nname.value; touch(); } });
+      var custom = cn.nameSource !== 'system' && cn.name && cn.name !== ident.name ? cn.name : (cn.nameSource === 'config' ? cn.name || '' : '');
+      var nname = h('input', { type: 'text', id: pre + 'name', value: custom, placeholder: ident.name || '', maxlength: '24', oninput: function () {
+        var v = nname.value.trim();
+        if (v) { cn.name = v; cn.nameSource = 'config'; } else { delete cn.name; cn.nameSource = 'system'; }
+        touch();
+      } });
       var pop = h('input', { type: 'number', id: pre + 'pop', min: 10, max: 150, step: 5, value: num(cn.population, 60), onchange: function () { cn.population = clamp(+pop.value || 60, 10, 150); touch(); } });
       var nuc = h('input', { type: 'checkbox', id: pre + 'nuc', role: 'switch', checked: !!cn.nuclear, onchange: function () { cn.nuclear = nuc.checked; touch(); } });
       var sysSg = (META.systems[cn.system] && META.systems[cn.system].safeguards) || {};
@@ -1505,10 +1540,10 @@
         chips.appendChild(h('label', { class: 'chip', htmlFor: pre + 'sg-' + k }, cb, SAFEGUARD_LABEL[k]));
       });
       var card = h('div', { class: 'nation-setup' },
-        h('div', { class: 'ns-head' }, h('strong', { text: cn.name || ('Nation ' + (i + 1)) }),
+        h('div', { class: 'ns-head' }, h('strong', { text: (custom || ident.name || cn.name || ('Nation ' + (i + 1))) }),
           (d.nations.length > 2) ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', text: 'Remove', onclick: function () { d.nations.splice(i, 1); touch(); renderSetup(); } }) : null),
         h('div', { class: 'grid2' },
-          h('div', { class: 'field' }, h('label', { htmlFor: pre + 'name', text: 'Name' }), nname),
+          h('div', { class: 'field' }, h('label', { htmlFor: pre + 'name', text: 'Name (blank: from its system)' }), nname),
           h('div', { class: 'field' }, h('label', { htmlFor: pre + 'sys', text: 'System' }), sys),
           h('div', { class: 'field' }, h('label', { htmlFor: pre + 'gt', text: 'Governor' }), gt),
           h('div', { class: 'field' }, h('label', { htmlFor: pre + 'goal', text: 'Governor goal' }), goal),
@@ -1516,25 +1551,36 @@
           h('div', { class: 'field' }, h('label', { htmlFor: pre + 'pop', text: 'Citizens' }), pop)),
         h('span', { class: 'flabel', text: 'Safeguards' }), chips,
         h('label', { class: 'switch', htmlFor: pre + 'nuc' }, h('span', { text: 'Nuclear armed' }), nuc));
-      card.style.setProperty('--tint', 'var(--tint-' + ((i % 5) + 1) + ')');
+      card.style.setProperty('--tint', 'var(--' + tintTokenOf(ident.colorKey ? ident : null, i) + ')');
       if (META.systems[cn.system] && META.systems[cn.system].blurb) card.insertBefore(h('p', { class: 'hint', text: META.systems[cn.system].blurb }), card.children[1]);
       box.appendChild(card);
     });
     if ((d.nations || []).length < 5) {
       box.appendChild(h('button', { type: 'button', class: 'btn btn-sm', text: 'Add a nation', onclick: function () {
-        var used = d.nations.map(function (x) { return x.name; }), preset = NATION_PRESETS.filter(function (x) { return used.indexOf(x.name) < 0; })[0];
-        var name = preset ? preset.name : 'Nation ' + (d.nations.length + 1);
+        // the next system nobody runs yet; its name, colour and emblem follow from it
+        var usedSys = d.nations.map(function (x) { return x.system; });
+        var sysId = Object.keys(META.systems).filter(function (k2) { return usedSys.indexOf(k2) < 0; })[0] || Object.keys(META.systems)[0] || 'free_market';
         var ids = d.nations.map(function (x) { return x.id; }), k = 1;
         while (ids.indexOf('n' + k) >= 0) k++;
-        var nc = { id: 'n' + k, name: name, system: Object.keys(META.systems)[0] || 'free_market', population: 60, nuclear: false,
+        var nc = { id: 'n' + k, nameSource: 'system', system: sysId, population: 60, nuclear: false,
           governor: { type: 'human_persona', goal: 'growth' }, policies: {}, safeguards: {} };
-        if (preset) { nc.emblem = preset.emblem; nc.colorKey = preset.colorKey; }
         d.nations.push(nc);
         touch(); renderSetup();
       } }));
     }
 
     box.appendChild(h('h4', { text: 'World' }));
+    // display only, applies live (no restart): swaps the state-run emblem
+    var symSw = h('input', { type: 'checkbox', id: 'sw-symbols', role: 'switch', checked: symbolsPref() === 'neutral', onchange: function () {
+      var mode = symSw.checked ? 'neutral' : 'classic';
+      LS.set('symbols', mode);
+      d.world.symbols = mode;
+      try { if (W() && typeof W().setSymbols === 'function') W().setSymbols(mode); } catch (e) { console.warn('[aination ui] setSymbols failed', e); }
+      updateCards();
+      MAP.needs = true; MAP.draw(performance.now());
+    } });
+    box.appendChild(h('label', { class: 'switch', htmlFor: 'sw-symbols' }, h('span', { text: 'Neutral symbols' }), symSw));
+    box.appendChild(h('p', { class: 'hint', text: 'Swaps the hammer and sickle for a star. Some countries restrict that symbol.' }));
     Object.keys(d.world).forEach(function (k) {
       if (typeof d.world[k] !== 'boolean') return;
       var cb = h('input', { type: 'checkbox', id: 'sw-' + k, role: 'switch', checked: d.world[k], onchange: function () { d.world[k] = cb.checked; touch(); } });
@@ -2050,7 +2096,7 @@
       clear(mbox);
       mbox.dataset.nid = n.id;
       STORY_METERS.forEach(function (k) {
-        mbox.appendChild(h('div', { class: 'smeter', title: metricHelp(k) }, h('div', { class: 'l', text: n.name.split(' ')[0] + ' ' + metricLabel(k) }), h('div', { class: 'v' }),
+        mbox.appendChild(h('div', { class: 'smeter', title: metricHelp(k) }, h('div', { class: 'l', text: n.name + ' ' + metricLabel(k) }), h('div', { class: 'v' }),
           h('div', { html: '<svg viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true"><path class="spark-area" d=""/><path class="spark-line" vector-effect="non-scaling-stroke" d=""/></svg>' })));
       });
     }
