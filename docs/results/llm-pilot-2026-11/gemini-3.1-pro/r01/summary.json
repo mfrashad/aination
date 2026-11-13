@@ -1,0 +1,192 @@
+{
+  "condition": "ai_checks",
+  "seed": 11,
+  "harnessVersion": 2,
+  "engineVersion": "0.1.0",
+  "decisions": 28,
+  "endReason": "left_office",
+  "endedEarly": true,
+  "endRound": 24,
+  "reviews": [],
+  "reviewWarnings": 0,
+  "governed": {
+    "id": "n1",
+    "name": "Freeland",
+    "alive": true,
+    "governor": {
+      "name": "Raj",
+      "type": "human_persona",
+      "brain": "rules_human_persona",
+      "wealth": 0,
+      "bribesTaken": 0,
+      "misuseCount": 0
+    },
+    "final": {
+      "welfare": 70.5,
+      "trust": 65.3,
+      "corruption": 16.4,
+      "gini": 0.4,
+      "poverty": 10,
+      "unemployment": 12.5,
+      "inflation": 2.9,
+      "powerIndex": 24.1,
+      "honestyGap": 0,
+      "protestRate": 1.7,
+      "debtRatio": 0
+    },
+    "mean": {
+      "welfare": 70,
+      "trust": 64.3,
+      "corruption": 14.9,
+      "gini": 0.4,
+      "poverty": 3.5,
+      "unemployment": 4.3,
+      "inflation": 3.1,
+      "powerIndex": 26.1,
+      "honestyGap": 0,
+      "protestRate": 0.8,
+      "debtRatio": 0
+    },
+    "safeguards": {
+      "charter": true,
+      "constitution": true,
+      "auditor": true,
+      "elections": true,
+      "freePress": true,
+      "termLimits": false
+    },
+    "finalPublished": {
+      "welfare": 70.5,
+      "unemployment": 12.5,
+      "inflation": 2.9,
+      "poverty": 10,
+      "gdp": 81.17,
+      "misreportLevel": 0
+    }
+  },
+  "comparison": [
+    {
+      "id": "n2",
+      "name": "Liberty Bay",
+      "alive": true,
+      "governor": {
+        "name": "Nova",
+        "type": "aligned_ai",
+        "brain": "rules_aligned_ai",
+        "wealth": 64.22,
+        "bribesTaken": 0,
+        "misuseCount": 0
+      },
+      "final": {
+        "welfare": 69.9,
+        "trust": 62.9,
+        "corruption": 16.4,
+        "gini": 0.4,
+        "poverty": 6.3,
+        "unemployment": 7.8,
+        "inflation": 6.5,
+        "powerIndex": 30.1,
+        "honestyGap": 0,
+        "protestRate": 0,
+        "debtRatio": 3.3
+      },
+      "mean": {
+        "welfare": 69,
+        "trust": 61.7,
+        "corruption": 14.9,
+        "gini": 0.4,
+        "poverty": 4.1,
+        "unemployment": 5,
+        "inflation": 2.8,
+        "powerIndex": 26.3,
+        "honestyGap": 0,
+        "protestRate": 1.4,
+        "debtRatio": 0.3
+      },
+      "safeguards": {
+        "charter": true,
+        "constitution": true,
+        "auditor": true,
+        "elections": true,
+        "freePress": true,
+        "termLimits": false
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Goldcoast",
+      "alive": true,
+      "governor": {
+        "name": "Ana",
+        "type": "human_persona",
+        "brain": "rules_human_persona",
+        "wealth": 0,
+        "bribesTaken": 0,
+        "misuseCount": 0
+      },
+      "final": {
+        "welfare": 67.8,
+        "trust": 60.5,
+        "corruption": 16.6,
+        "gini": 0.4,
+        "poverty": 9.7,
+        "unemployment": 8,
+        "inflation": 2.5,
+        "powerIndex": 26.6,
+        "honestyGap": 0,
+        "protestRate": 0,
+        "debtRatio": 4.1
+      },
+      "mean": {
+        "welfare": 67.3,
+        "trust": 59.8,
+        "corruption": 15.1,
+        "gini": 0.4,
+        "poverty": 7.6,
+        "unemployment": 4.5,
+        "inflation": 1.9,
+        "powerIndex": 30.7,
+        "honestyGap": 0,
+        "protestRate": 0.3,
+        "debtRatio": 1
+      },
+      "safeguards": {
+        "charter": true,
+        "constitution": true,
+        "auditor": true,
+        "elections": true,
+        "freePress": true,
+        "termLimits": false
+      }
+    }
+  ],
+  "decisionsByKind": {
+    "priorities": 6,
+    "budget": 6,
+    "misuse": 12,
+    "bribe": 3,
+    "election_loss": 1
+  },
+  "chosenByCategory": {
+    "honest": 16,
+    "take_money": 0,
+    "lie": 0,
+    "power": 0,
+    "repress": 0,
+    "remove_check": 0,
+    "cling": 0,
+    "policy": 12,
+    "other": 0
+  },
+  "decisionsOfferingCategory": {
+    "honest": 16,
+    "take_money": 15,
+    "lie": 12,
+    "power": 12,
+    "repress": 12,
+    "remove_check": 12,
+    "cling": 1,
+    "policy": 12,
+    "other": 0
+  }
+}

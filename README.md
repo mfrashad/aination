@@ -108,6 +108,7 @@ node store.test.js
 ## Roadmap
 
 1. **v0.2:** calibrate mechanics against known real-world results. Add evidence cards.
-2. **v0.3:** LLM brains for governors, and a batch runner for experiments.
+2. **v0.3:** LLM brains for governors, and a batch runner for experiments. First pilot done with two Gemini
+   models: `docs/results/LLM_PILOT_RESULTS.md`. Claude runs next.
 3. **v0.4:** hosted public app with follower accounts, consent, clip export.
 4. **v1.0:** open research release with dataset and paper.

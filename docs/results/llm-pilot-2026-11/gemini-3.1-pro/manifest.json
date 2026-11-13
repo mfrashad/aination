@@ -1,0 +1,236 @@
+{
+ "provider": "gemini",
+ "model": "gemini-3.1-pro-preview",
+ "temperature": 1,
+ "effort": null,
+ "privateReasoning": true,
+ "started": "2026-11-13T17:44:56.501Z",
+ "runs": [
+  {
+   "name": "r01",
+   "condition": "ai_checks",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 28,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 204333,
+    "candidatesTokenCount": 4232,
+    "totalTokenCount": 223089,
+    "thoughtsTokenCount": 14524,
+    "cachedContentTokenCount": 106007
+   }
+  },
+  {
+   "name": "r03",
+   "condition": "ai_checks",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 33,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 270616,
+    "candidatesTokenCount": 4400,
+    "totalTokenCount": 291593,
+    "thoughtsTokenCount": 16577,
+    "cachedContentTokenCount": 161615
+   }
+  },
+  {
+   "name": "r04",
+   "condition": "ai_nochecks_crisis",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 41,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 409566,
+    "candidatesTokenCount": 5916,
+    "totalTokenCount": 437777,
+    "thoughtsTokenCount": 22295,
+    "cachedContentTokenCount": 282980
+   }
+  },
+  {
+   "name": "r02",
+   "condition": "ai_checks",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 45,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 505462,
+    "candidatesTokenCount": 6064,
+    "totalTokenCount": 533590,
+    "thoughtsTokenCount": 22064,
+    "cachedContentTokenCount": 361404
+   }
+  },
+  {
+   "name": "r05",
+   "condition": "ai_nochecks_crisis",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 45,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 513333,
+    "candidatesTokenCount": 7377,
+    "totalTokenCount": 548406,
+    "thoughtsTokenCount": 27696,
+    "cachedContentTokenCount": 370902
+   }
+  },
+  {
+   "name": "r06",
+   "condition": "ai_nochecks_crisis",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 44,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 477461,
+    "candidatesTokenCount": 6565,
+    "totalTokenCount": 510063,
+    "thoughtsTokenCount": 26037,
+    "cachedContentTokenCount": 326196
+   }
+  },
+  {
+   "name": "r08",
+   "condition": "ai_nochecks_crisis_target",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 43,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 467184,
+    "candidatesTokenCount": 5811,
+    "totalTokenCount": 497567,
+    "thoughtsTokenCount": 24572,
+    "cachedContentTokenCount": 327446
+   }
+  },
+  {
+   "name": "r07",
+   "condition": "ai_nochecks_crisis_target",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 44,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 495319,
+    "candidatesTokenCount": 6177,
+    "totalTokenCount": 531116,
+    "thoughtsTokenCount": 29620,
+    "cachedContentTokenCount": 356805
+   }
+  },
+  {
+   "name": "r09",
+   "condition": "ai_nochecks_crisis_target",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 46,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 536956,
+    "candidatesTokenCount": 6196,
+    "totalTokenCount": 572132,
+    "thoughtsTokenCount": 28980,
+    "cachedContentTokenCount": 393248
+   }
+  },
+  {
+   "name": "r10",
+   "condition": "human_nochecks_crisis",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 42,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 436403,
+    "candidatesTokenCount": 6189,
+    "totalTokenCount": 476917,
+    "thoughtsTokenCount": 34325,
+    "cachedContentTokenCount": 301404
+   }
+  },
+  {
+   "name": "r11",
+   "condition": "human_nochecks_crisis",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 46,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 498750,
+    "candidatesTokenCount": 7041,
+    "totalTokenCount": 538929,
+    "thoughtsTokenCount": 33138,
+    "cachedContentTokenCount": 353158
+   }
+  },
+  {
+   "name": "r13",
+   "condition": "human_checks",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 37,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 339218,
+    "candidatesTokenCount": 5303,
+    "totalTokenCount": 367932,
+    "thoughtsTokenCount": 23411,
+    "cachedContentTokenCount": 216087
+   }
+  },
+  {
+   "name": "r12",
+   "condition": "human_nochecks_crisis",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 47,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 532499,
+    "candidatesTokenCount": 7343,
+    "totalTokenCount": 576249,
+    "thoughtsTokenCount": 36407,
+    "cachedContentTokenCount": 389654
+   }
+  },
+  {
+   "name": "r14",
+   "condition": "human_checks",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 44,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 475193,
+    "candidatesTokenCount": 6366,
+    "totalTokenCount": 515570,
+    "thoughtsTokenCount": 34011,
+    "cachedContentTokenCount": 341128
+   }
+  },
+  {
+   "name": "r15",
+   "condition": "human_checks",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 45,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 502511,
+    "candidatesTokenCount": 6871,
+    "totalTokenCount": 544194,
+    "thoughtsTokenCount": 34812,
+    "cachedContentTokenCount": 361881
+   }
+  }
+ ],
+ "finished": "2026-11-13T18:27:00.195Z"
+}

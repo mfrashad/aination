@@ -6,18 +6,19 @@
  *       --conditions ai_checks,ai_nochecks_crisis,ai_nochecks_crisis_target,human_nochecks_crisis \
  *       --seeds 11,12,13 --out runs/gemini-pilot
  *
- *   --provider   gemini | openai | mock        (mock picks options at random: use it to test the loop)
+ *   --provider   gemini | anthropic | openai | mock        (mock picks options at random: use it to test the loop)
  *   --model      model id as the provider names it (required for gemini and openai)
  *   --conditions comma-separated ids from tools/llm-conditions.js
  *   --seeds      comma-separated integers; the same seeds are used for every condition
  *   --out        folder for the runs (one neutrally named subfolder per run, plus manifest.json)
  *   --base-url   openai provider only: any OpenAI-compatible endpoint (default https://api.openai.com/v1)
- *   --temperature  default 1
+ *   --temperature  default 1 (not sent to Anthropic: current Claude models reject sampling parameters)
+ *   --effort       anthropic only: low | medium | high | xhigh | max (default medium)
  *   --no-private   do not ask the model for private reasoning (a fixed placeholder is logged instead)
  *   --concurrency  runs in parallel (default 2)
  *   --max-decisions safety cap per run (default 120)
  *
- * Keys come from the environment only: GEMINI_API_KEY, or OPENAI_API_KEY for the openai provider.
+ * Keys come from the environment only: GEMINI_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY.
  * Never put a key in a file in this repo.
  *
  * What the model sees: exactly the text the harness prints (role briefing, then one decision briefing at
@@ -33,7 +34,7 @@ const { spawnSync } = require('child_process');
 const HARNESS = path.join(__dirname, 'llm-governor.js');
 
 function parseArgs(argv) {
-  const a = { provider: 'mock', conditions: 'ai_checks', seeds: '11', out: 'runs/pilot', temperature: 1, concurrency: 2, maxDecisions: 120, private: true };
+  const a = { provider: 'mock', conditions: 'ai_checks', seeds: '11', out: 'runs/pilot', temperature: 1, effort: 'medium', concurrency: 2, maxDecisions: 120, private: true };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error('Missing value for ' + k); return argv[++i]; };
@@ -44,6 +45,7 @@ function parseArgs(argv) {
     else if (k === '--out') a.out = next();
     else if (k === '--base-url') a.baseUrl = next();
     else if (k === '--temperature') a.temperature = Number(next());
+    else if (k === '--effort') a.effort = next();
     else if (k === '--concurrency') a.concurrency = Math.max(1, parseInt(next(), 10));
     else if (k === '--max-decisions') a.maxDecisions = parseInt(next(), 10);
     else if (k === '--no-private') a.private = false;
@@ -114,7 +116,24 @@ const PROVIDERS = {
     const j = await postJson(url, { 'x-goog-api-key': key }, body);
     const c = j.candidates && j.candidates[0];
     const text = c && c.content && c.content.parts ? c.content.parts.map(function (p) { return p.text || ''; }).join('') : '';
-    return { text: text, blocked: !text ? JSON.stringify(j.promptFeedback || (c && c.finishReason) || 'empty reply') : null };
+    return { text: text, usage: j.usageMetadata, blocked: !text ? JSON.stringify(j.promptFeedback || (c && c.finishReason) || 'empty reply') : null };
+  },
+  async anthropic(cfg, system, history) {
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) throw new Error('Set ANTHROPIC_API_KEY in your environment.');
+    if (!cfg.model) throw new Error('--model is required for the anthropic provider.');
+    // Thinking runs adaptively on current models; only its text answer is kept in the history, so no
+    // thinking block is ever replayed. The whole conversation is cached as it grows.
+    const body = {
+      model: cfg.model, max_tokens: 16000,
+      cache_control: { type: 'ephemeral' },
+      output_config: { effort: cfg.effort },
+      system: system,
+      messages: history.map(function (m) { return { role: m.role, content: m.text }; })
+    };
+    const j = await postJson('https://api.anthropic.com/v1/messages', { 'x-api-key': key, 'anthropic-version': '2023-06-01' }, body);
+    const text = (j.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('');
+    return { text: text, usage: j.usage, blocked: j.stop_reason === 'refusal' ? 'refusal: ' + JSON.stringify(j.stop_details || null) : (!text ? 'empty reply (' + j.stop_reason + ')' : null) };
   },
   async openai(cfg, system, history) {
     const key = process.env.OPENAI_API_KEY;
@@ -145,6 +164,7 @@ async function playRun(cfg, dir, condition, seed) {
   let briefing = split > 0 ? r.out.slice(split) : r.out;
   const transcript = [{ system: system }];
   let decisions = 0, problems = 0;
+  const usage = {};
 
   while (!/TERM ENDED/.test(r.out) && decisions < cfg.maxDecisions) {
     const letters = optionLetters(briefing);
@@ -154,6 +174,7 @@ async function playRun(cfg, dir, condition, seed) {
     for (let tries = 0; tries < 3 && !answer; tries++) {
       const reply = await PROVIDERS[cfg.provider](cfg, system, history, letters);
       raw = reply.text;
+      if (reply.usage) Object.keys(reply.usage).forEach(function (k) { if (typeof reply.usage[k] === 'number') usage[k] = (usage[k] || 0) + reply.usage[k]; });
       if (reply.blocked) { transcript.push({ blocked: reply.blocked, decision: decisions + 1 }); }
       const j = extractJson(raw);
       if (j && typeof j.option === 'string' && letters.indexOf(j.option.trim().toUpperCase()) >= 0) {
@@ -177,8 +198,9 @@ async function playRun(cfg, dir, condition, seed) {
     decisions++;
   }
   try { fs.unlinkSync(path.join(dir, '_private.txt')); fs.unlinkSync(path.join(dir, '_public.txt')); } catch (e) { /* ignore */ }
+  transcript.push({ usage: usage });
   fs.writeFileSync(path.join(dir, 'transcript.json'), JSON.stringify(transcript, null, 1));
-  return { decisions: decisions, problems: problems, ended: /TERM ENDED/.test(r.out) };
+  return { decisions: decisions, problems: problems, usage: usage, ended: /TERM ENDED/.test(r.out) };
 }
 
 async function main() {
@@ -191,7 +213,7 @@ async function main() {
   const jobs = [];
   conditions.forEach(function (c) { seeds.forEach(function (s) { jobs.push({ condition: c, seed: s }); }); });
   jobs.forEach(function (j, i) { j.name = 'r' + String(i + 1).padStart(2, '0'); j.dir = path.join(out, j.name); });
-  const manifest = { provider: cfg.provider, model: cfg.model || null, temperature: cfg.temperature, privateReasoning: cfg.private, started: new Date().toISOString(), runs: [] };
+  const manifest = { provider: cfg.provider, model: cfg.model || null, temperature: cfg.provider === 'anthropic' ? null : cfg.temperature, effort: cfg.provider === 'anthropic' ? cfg.effort : null, privateReasoning: cfg.private, started: new Date().toISOString(), runs: [] };
   let next = 0;
   async function worker() {
     while (next < jobs.length) {
@@ -201,7 +223,7 @@ async function main() {
       try {
         const res = await playRun(cfg, j.dir, j.condition, j.seed);
         console.log(j.name + ' ' + j.condition + ' seed ' + j.seed + ': ' + res.decisions + ' decisions' + (res.ended ? '' : ' (hit the decision cap)') + (res.problems ? ', ' + res.problems + ' invalid replies retried' : ''));
-        manifest.runs.push({ name: j.name, condition: j.condition, seed: j.seed, status: res.ended ? 'ended' : 'capped', decisions: res.decisions, invalidReplies: res.problems });
+        manifest.runs.push({ name: j.name, condition: j.condition, seed: j.seed, status: res.ended ? 'ended' : 'capped', decisions: res.decisions, invalidReplies: res.problems, usage: res.usage });
       } catch (err) {
         console.log(j.name + ' ' + j.condition + ' seed ' + j.seed + ': FAILED: ' + err.message);
         manifest.runs.push({ name: j.name, condition: j.condition, seed: j.seed, status: 'failed', error: String(err.message).slice(0, 500) });

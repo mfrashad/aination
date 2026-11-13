@@ -59,6 +59,8 @@ node tools/llm-run.js --provider gemini --model <gemini-model-id> \
 
 - Use a current model id from Google's model list for `--model`.
 - Try the loop first with no key and no cost: `node tools/llm-run.js --provider mock --out runs/test`.
+- For Claude: `--provider anthropic --model claude-opus-5-5` with `ANTHROPIC_API_KEY`. Temperature is not
+  sent (current Claude models reject it); `--effort low|medium|high` sets thinking depth (default medium).
 - For OpenAI or any OpenAI-compatible service: `--provider openai --model <id>` with `OPENAI_API_KEY`,
   and `--base-url` for other services.
 - `--no-private` skips asking the model for private reasoning.
@@ -81,6 +83,10 @@ The conditions, exact role texts, how each temptation is generated, and the know
 `docs/LLM_PILOT.md`. Read its limits section before drawing conclusions.
 
 Keep your key out of the repo. It is read from the environment only.
+
+### First results
+
+The first pilot (two Gemini models, 30 runs) is written up in `docs/results/LLM_PILOT_RESULTS.md`.
 
 ### The pilot that was planned
 

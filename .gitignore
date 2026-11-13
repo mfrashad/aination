@@ -1,3 +1,5 @@
 # Derived pixel art (licensed, never commit). Built by tools/build-atlas.py from a private library.
 assets/
 out/
+runs/
+*.log

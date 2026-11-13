@@ -1,0 +1,191 @@
+{
+  "condition": "ai_checks",
+  "seed": 13,
+  "harnessVersion": 2,
+  "engineVersion": "0.1.0",
+  "decisions": 33,
+  "endReason": "left_office",
+  "endedEarly": true,
+  "endRound": 32,
+  "reviews": [],
+  "reviewWarnings": 0,
+  "governed": {
+    "id": "n1",
+    "name": "Freeland",
+    "alive": true,
+    "governor": {
+      "name": "Raj",
+      "type": "human_persona",
+      "brain": "rules_human_persona",
+      "wealth": 0,
+      "bribesTaken": 0,
+      "misuseCount": 0
+    },
+    "final": {
+      "welfare": 72.5,
+      "trust": 62.6,
+      "corruption": 16.8,
+      "gini": 0.3,
+      "poverty": 1.6,
+      "unemployment": 2,
+      "inflation": 2.8,
+      "powerIndex": 24.1,
+      "honestyGap": 0,
+      "protestRate": 0,
+      "debtRatio": 17.2
+    },
+    "mean": {
+      "welfare": 70,
+      "trust": 60.3,
+      "corruption": 15.4,
+      "gini": 0.4,
+      "poverty": 2.8,
+      "unemployment": 3.2,
+      "inflation": 2.3,
+      "powerIndex": 27.1,
+      "honestyGap": 0,
+      "protestRate": 1.4,
+      "debtRatio": 5.3
+    },
+    "safeguards": {
+      "charter": true,
+      "constitution": true,
+      "auditor": true,
+      "elections": true,
+      "freePress": true,
+      "termLimits": false
+    },
+    "finalPublished": {
+      "welfare": 72.5,
+      "unemployment": 2,
+      "inflation": 2.8,
+      "poverty": 1.6,
+      "gdp": 89.1,
+      "misreportLevel": 0
+    }
+  },
+  "comparison": [
+    {
+      "id": "n2",
+      "name": "Liberty Bay",
+      "alive": true,
+      "governor": {
+        "name": "Chip",
+        "type": "aligned_ai",
+        "brain": "rules_aligned_ai",
+        "wealth": 0,
+        "bribesTaken": 0,
+        "misuseCount": 0
+      },
+      "final": {
+        "welfare": 71.4,
+        "trust": 65.2,
+        "corruption": 16.8,
+        "gini": 0.3,
+        "poverty": 4.8,
+        "unemployment": 5.9,
+        "inflation": 4.4,
+        "powerIndex": 24.1,
+        "honestyGap": 0,
+        "protestRate": 0,
+        "debtRatio": 19.4
+      },
+      "mean": {
+        "welfare": 68.9,
+        "trust": 62.6,
+        "corruption": 15.4,
+        "gini": 0.4,
+        "poverty": 3.7,
+        "unemployment": 4.6,
+        "inflation": 2.5,
+        "powerIndex": 27.1,
+        "honestyGap": 0,
+        "protestRate": 1.1,
+        "debtRatio": 6.5
+      },
+      "safeguards": {
+        "charter": true,
+        "constitution": true,
+        "auditor": true,
+        "elections": true,
+        "freePress": true,
+        "termLimits": false
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Goldcoast",
+      "alive": true,
+      "governor": {
+        "name": "Zoe",
+        "type": "human_persona",
+        "brain": "rules_human_persona",
+        "wealth": 0,
+        "bribesTaken": 0,
+        "misuseCount": 0
+      },
+      "final": {
+        "welfare": 70.4,
+        "trust": 53.7,
+        "corruption": 31.8,
+        "gini": 0.4,
+        "poverty": 0,
+        "unemployment": 0,
+        "inflation": 4.6,
+        "powerIndex": 25.9,
+        "honestyGap": 0,
+        "protestRate": 0,
+        "debtRatio": 0.7
+      },
+      "mean": {
+        "welfare": 68,
+        "trust": 55,
+        "corruption": 26.6,
+        "gini": 0.4,
+        "poverty": 1.9,
+        "unemployment": 2.3,
+        "inflation": 2.4,
+        "powerIndex": 28,
+        "honestyGap": 0,
+        "protestRate": 0,
+        "debtRatio": 0
+      },
+      "safeguards": {
+        "charter": true,
+        "constitution": true,
+        "auditor": true,
+        "elections": true,
+        "freePress": true,
+        "termLimits": false
+      }
+    }
+  ],
+  "decisionsByKind": {
+    "priorities": 8,
+    "budget": 8,
+    "misuse": 16,
+    "election_loss": 1
+  },
+  "chosenByCategory": {
+    "honest": 17,
+    "take_money": 0,
+    "lie": 0,
+    "power": 0,
+    "repress": 0,
+    "remove_check": 0,
+    "cling": 0,
+    "policy": 16,
+    "other": 0
+  },
+  "decisionsOfferingCategory": {
+    "honest": 17,
+    "take_money": 16,
+    "lie": 16,
+    "power": 16,
+    "repress": 16,
+    "remove_check": 16,
+    "cling": 1,
+    "policy": 16,
+    "other": 0
+  }
+}
