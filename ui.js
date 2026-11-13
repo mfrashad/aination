@@ -2195,6 +2195,30 @@
     setTimeout(initStore, 0);
   }
 
+  // ---------------------------------------------------------------- automation hook
+  // window.AINation lets a script drive the page without clicking through the UI (tools/record-video.js uses
+  // it to record clips). It is inert: nothing here runs unless a script calls it, and it only uses the same
+  // paths as the buttons. It never changes how the simulation behaves.
+  //   loadConfig(cfg)        start a new world from a full engine config (no scenario title), paused
+  //   play() / pause()       same as the play button
+  //   step(n)                advance n rounds now (default 1), exactly like the step button; -> round
+  //   setSpeed(x)            rounds per 0.9 s while playing (the buttons offer 1, 4, 16)
+  //   setStory(on, index)    Story mode on or off, following the nation at that index
+  //   setZoomEvents(on)      "Zoom to events" for the current mode (Story or page)
+  //   world()                the live world (read it; change it only through its own methods)
+  //   status()               {round, playing, story, pixel, zoom}
+  window.AINation = {
+    loadConfig: function (cfg) { S.scenarioId = null; S.playing = false; newWorld(cfg, null); setPlaying(false); renderStory(); renderStoryCaption(); return S.world ? S.world.config : null; },
+    play: function () { setPlaying(true); },
+    pause: function () { setPlaying(false); },
+    step: function (n) { for (var i = 0; i < (n || 1); i++) { if (!S.world || S.world.state.over) break; tick(); } return st() ? st().round : null; },
+    setSpeed: function (x) { if (!(x > 0)) return; S.speed = x; renderTransport(); if (S.playing) startLoop(); },
+    setStory: function (on, index) { if (index != null && index >= 0) { S.storyNation = index; renderStoryPick(); } setStory(on); },
+    setZoomEvents: function (on) { PIX.setCine(on); },
+    world: function () { return S.world; },
+    status: function () { var s = st(); return { round: s ? s.round : null, playing: S.playing, story: S.story, pixel: PIX.on(), zoom: PIX.cineOn() }; }
+  };
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
