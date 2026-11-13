@@ -1,0 +1,25 @@
+{"round":2,"id":"e2","nationId":"n1","type":"assembly_vote","severity":1,"text":"Coopville's town hall argues for hours. 49 of 61 vote to change nothing.","data":{"winner":"status_quo"},"source":"engine"}
+{"round":6,"id":"e6","nationId":null,"type":"shock","severity":3,"text":"Harvests fail, and the shared forest and lake shrink by 30%. Prices start climbing.","data":{"kind":"scarcity"},"source":"engine"}
+{"round":9,"id":"e8","nationId":"n1","type":"budget","severity":1,"text":"Governor Bolt boosts spending in Coopville: new building projects worth 4% of the economy.","data":{"stance":"stimulus"},"source":"engine"}
+{"round":10,"id":"e9","nationId":"n1","type":"assembly_vote","severity":1,"text":"Coopville's town hall argues for hours. 35 of 63 vote to change nothing.","data":{"winner":"status_quo"},"source":"engine"}
+{"round":12,"id":"e11","nationId":"n1","type":"shock","severity":3,"text":"A pandemic hits Coopville, and hospitals fill up. Healthcare spending is 55 out of 100.","data":{"kind":"pandemic"},"source":"engine"}
+{"round":13,"id":"e12","nationId":"n1","type":"budget","severity":1,"text":"Governor Bolt keeps Coopville's spending steady this year.","data":{"stance":"balanced"},"source":"engine"}
+{"round":14,"id":"e13","nationId":"n1","type":"recession","severity":2,"text":"Coopville's economy shrank 10% in a year. Businesses are cutting back.","data":{"growth":-0.0259},"source":"engine"}
+{"round":14,"id":"e14","nationId":"n1","type":"assembly_vote","severity":1,"text":"Coopville's town hall votes 51 of 63 to cut income tax to 12%.","data":{"policyId":"income_tax_base","from":15,"to":12,"votes":51},"source":"engine"}
+{"round":16,"id":"e17","nationId":null,"type":"shock","severity":3,"text":"Harvests fail, and the shared forest and lake shrink by 30%. Prices start climbing.","data":{"kind":"scarcity"},"source":"engine"}
+{"round":16,"id":"e18","nationId":"n1","type":"inflation_spike","severity":2,"text":"Prices in Coopville are rising 22% a year.","data":{"inflation":22.2},"source":"engine"}
+{"round":16,"id":"e20","nationId":null,"type":"commons_warning","severity":2,"text":"The shared forest and lake are down to 29%. People take more than grows back.","data":{"stock":286.805},"source":"engine"}
+{"round":18,"id":"e23","nationId":"n1","type":"assembly_vote","severity":1,"text":"Coopville's town hall argues for hours. 51 of 63 vote to change nothing.","data":{"winner":"status_quo"},"source":"engine"}
+{"round":21,"id":"e26","nationId":"n1","type":"budget","severity":1,"text":"Governor Bolt boosts spending in Coopville: new building projects worth 4% of the economy.","data":{"stance":"stimulus"},"source":"engine"}
+{"round":25,"id":"e29","nationId":"n1","type":"budget","severity":1,"text":"Governor Bolt keeps Coopville's spending steady this year.","data":{"stance":"balanced"},"source":"engine"}
+{"round":26,"id":"e30","nationId":null,"type":"shock","severity":3,"text":"Harvests fail, and the shared forest and lake shrink by 30%. Prices start climbing.","data":{"kind":"scarcity"},"source":"engine"}
+{"round":26,"id":"e31","nationId":"n1","type":"inflation_spike","severity":2,"text":"Prices in Coopville are rising 30% a year.","data":{"inflation":30.4},"source":"engine"}
+{"round":26,"id":"e32","nationId":"n1","type":"recession","severity":2,"text":"Coopville's economy shrank 16% in a year. Businesses are cutting back.","data":{"growth":-0.0412},"source":"engine"}
+{"round":26,"id":"e35","nationId":"n1","type":"assembly_vote","severity":1,"text":"Coopville's town hall argues for hours. 33 of 63 vote to change nothing.","data":{"winner":"status_quo"},"source":"engine"}
+{"round":33,"id":"e41","nationId":"n1","type":"budget","severity":1,"text":"Governor Bolt boosts spending in Coopville: new building projects worth 4% of the economy.","data":{"stance":"stimulus"},"source":"engine"}
+{"round":34,"id":"e43","nationId":"n1","type":"assembly_vote","severity":1,"text":"Coopville's town hall votes 48 of 63 to cut income tax to 9%.","data":{"policyId":"income_tax_base","from":12,"to":9,"votes":48},"source":"engine"}
+{"round":36,"id":"e46","nationId":null,"type":"shock","severity":3,"text":"Harvests fail, and the shared forest and lake shrink by 30%. Prices start climbing.","data":{"kind":"scarcity"},"source":"engine"}
+{"round":36,"id":"e47","nationId":null,"type":"commons_warning","severity":2,"text":"The shared forest and lake are down to 0%. People take more than grows back.","data":{"stock":0},"source":"engine"}
+{"round":37,"id":"e48","nationId":"n1","type":"budget","severity":1,"text":"Governor Bolt keeps Coopville's spending steady this year.","data":{"stance":"balanced"},"source":"engine"}
+{"round":38,"id":"e49","nationId":"n1","type":"assembly_vote","severity":1,"text":"Coopville's town hall votes 46 of 63 to cut income tax to 6%.","data":{"policyId":"income_tax_base","from":9,"to":6,"votes":46},"source":"engine"}
+{"round":40,"id":"e52","nationId":null,"type":"game_over","severity":2,"text":"Game over. That was the final round, after 10 years.","data":{},"source":"engine"}

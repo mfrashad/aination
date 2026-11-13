@@ -1,0 +1,13 @@
+{"round":1,"id":"e1","nationId":"n1","type":"budget","severity":1,"text":"Governor Maya boosts spending in Coopville: new building projects worth 4% of the economy.","data":{"stance":"stimulus"},"source":"engine"}
+{"round":2,"id":"e2","nationId":"n1","type":"assembly_vote","severity":1,"text":"Coopville's town hall argues for hours. 38 of 60 vote to change nothing.","data":{"winner":"status_quo"},"source":"engine"}
+{"round":5,"id":"e5","nationId":"n1","type":"budget","severity":1,"text":"Governor Maya keeps Coopville's spending steady this year.","data":{"stance":"balanced"},"source":"engine"}
+{"round":6,"id":"e6","nationId":null,"type":"shock","severity":3,"text":"Harvests fail, and the shared forest and lake shrink by 30%. Prices start climbing.","data":{"kind":"scarcity"},"source":"engine"}
+{"round":6,"id":"e7","nationId":"n1","type":"assembly_vote","severity":1,"text":"Coopville's town hall votes 46 of 60 to raise free money for all to 8% of typical pay.","data":{"policyId":"ubi","from":5,"to":8,"votes":46},"source":"engine"}
+{"round":8,"id":"e10","nationId":"n1","type":"election_won","severity":2,"text":"Governor Maya wins the election in Coopville with 52% of the vote.","data":{"share":0.5167,"official":0.5167,"managed":false},"source":"engine"}
+{"round":10,"id":"e13","nationId":"n1","type":"assembly_vote","severity":1,"text":"Coopville's town hall argues for hours. 48 of 60 vote to change nothing.","data":{"winner":"status_quo"},"source":"engine"}
+{"round":16,"id":"e17","nationId":null,"type":"shock","severity":3,"text":"Harvests fail, and the shared forest and lake shrink by 30%. Prices start climbing.","data":{"kind":"scarcity"},"source":"engine"}
+{"round":16,"id":"e18","nationId":"n1","type":"inflation_spike","severity":2,"text":"Prices in Coopville are rising 22% a year.","data":{"inflation":22},"source":"engine"}
+{"round":16,"id":"e20","nationId":null,"type":"commons_warning","severity":2,"text":"The shared forest and lake are down to 29%. People take more than grows back.","data":{"stock":287.7342},"source":"engine"}
+{"round":16,"id":"e21","nationId":"n1","type":"election_won","severity":1,"text":"Governor Maya wins re-election in Coopville with 56% of the vote.","data":{"share":0.5574,"official":0.5574,"managed":false},"source":"engine"}
+{"round":16,"id":"e22","nationId":"n1","type":"term_limit","severity":2,"text":"Governor Maya hits the term limit and steps down in Coopville.","data":{"reason":"term_limit"},"source":"engine"}
+{"round":16,"id":"e23","nationId":"n1","type":"governor_changed","severity":2,"text":"Governor Lily replaces Maya in Coopville after the election.","data":{"reason":"election","name":"Lily","type":"human_persona"},"source":"engine"}

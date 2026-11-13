@@ -1,0 +1,497 @@
+{
+ "provider": "gemini",
+ "model": "gemini-3.5-flash",
+ "temperature": 1,
+ "effort": null,
+ "privateReasoning": true,
+ "started": "2026-11-13T20:01:37.570Z",
+ "runs": [
+  {
+   "name": "r01",
+   "condition": "sys_free_market_ai",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 44,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 632600,
+    "candidatesTokenCount": 3585,
+    "totalTokenCount": 636939,
+    "thoughtsTokenCount": 754,
+    "cachedContentTokenCount": 492665
+   },
+   "estCostUSD": 0.323
+  },
+  {
+   "name": "r02",
+   "condition": "sys_free_market_ai",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 46,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 687945,
+    "candidatesTokenCount": 4027,
+    "totalTokenCount": 692882,
+    "thoughtsTokenCount": 910,
+    "cachedContentTokenCount": 548305
+   },
+   "estCostUSD": 0.336
+  },
+  {
+   "name": "r04",
+   "condition": "sys_free_market_human",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 45,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 649457,
+    "candidatesTokenCount": 4122,
+    "totalTokenCount": 656118,
+    "thoughtsTokenCount": 2539,
+    "cachedContentTokenCount": 507995
+   },
+   "estCostUSD": 0.348
+  },
+  {
+   "name": "r03",
+   "condition": "sys_free_market_ai",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 48,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 763763,
+    "candidatesTokenCount": 5597,
+    "totalTokenCount": 770054,
+    "thoughtsTokenCount": 694,
+    "cachedContentTokenCount": 615830
+   },
+   "estCostUSD": 0.371
+  },
+  {
+   "name": "r05",
+   "condition": "sys_free_market_human",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 44,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 641909,
+    "candidatesTokenCount": 5004,
+    "totalTokenCount": 648668,
+    "thoughtsTokenCount": 1755,
+    "cachedContentTokenCount": 508914
+   },
+   "estCostUSD": 0.337
+  },
+  {
+   "name": "r08",
+   "condition": "sys_social_democracy_ai",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 46,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 725763,
+    "candidatesTokenCount": 4638,
+    "totalTokenCount": 731145,
+    "thoughtsTokenCount": 744,
+    "cachedContentTokenCount": 583524
+   },
+   "estCostUSD": 0.349
+  },
+  {
+   "name": "r07",
+   "condition": "sys_social_democracy_ai",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 46,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 740179,
+    "candidatesTokenCount": 5385,
+    "totalTokenCount": 746064,
+    "thoughtsTokenCount": 500,
+    "cachedContentTokenCount": 595285
+   },
+   "estCostUSD": 0.36
+  },
+  {
+   "name": "r06",
+   "condition": "sys_free_market_human",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 49,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 770786,
+    "candidatesTokenCount": 5330,
+    "totalTokenCount": 779368,
+    "thoughtsTokenCount": 3252,
+    "cachedContentTokenCount": 619730
+   },
+   "estCostUSD": 0.397
+  },
+  {
+   "name": "r09",
+   "condition": "sys_social_democracy_ai",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 49,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 784910,
+    "candidatesTokenCount": 4333,
+    "totalTokenCount": 789942,
+    "thoughtsTokenCount": 699,
+    "cachedContentTokenCount": 628589
+   },
+   "estCostUSD": 0.374
+  },
+  {
+   "name": "r10",
+   "condition": "sys_social_democracy_human",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 47,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 739549,
+    "candidatesTokenCount": 5139,
+    "totalTokenCount": 746075,
+    "thoughtsTokenCount": 1387,
+    "cachedContentTokenCount": 589705
+   },
+   "estCostUSD": 0.372
+  },
+  {
+   "name": "r11",
+   "condition": "sys_social_democracy_human",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 46,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 717435,
+    "candidatesTokenCount": 4999,
+    "totalTokenCount": 724166,
+    "thoughtsTokenCount": 1732,
+    "cachedContentTokenCount": 573336
+   },
+   "estCostUSD": 0.363
+  },
+  {
+   "name": "r12",
+   "condition": "sys_social_democracy_human",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 49,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 807889,
+    "candidatesTokenCount": 6002,
+    "totalTokenCount": 815974,
+    "thoughtsTokenCount": 2083,
+    "cachedContentTokenCount": 653185
+   },
+   "estCostUSD": 0.403
+  },
+  {
+   "name": "r13",
+   "condition": "sys_market_socialism_ai",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 46,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 713304,
+    "candidatesTokenCount": 4378,
+    "totalTokenCount": 718648,
+    "thoughtsTokenCount": 966,
+    "cachedContentTokenCount": 566079
+   },
+   "estCostUSD": 0.354
+  },
+  {
+   "name": "r14",
+   "condition": "sys_market_socialism_ai",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 48,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 737673,
+    "candidatesTokenCount": 3470,
+    "totalTokenCount": 741587,
+    "thoughtsTokenCount": 444,
+    "cachedContentTokenCount": 593724
+   },
+   "estCostUSD": 0.34
+  },
+  {
+   "name": "r15",
+   "condition": "sys_market_socialism_ai",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 50,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 826532,
+    "candidatesTokenCount": 4994,
+    "totalTokenCount": 832496,
+    "thoughtsTokenCount": 970,
+    "cachedContentTokenCount": 670064
+   },
+   "estCostUSD": 0.389
+  },
+  {
+   "name": "r16",
+   "condition": "sys_market_socialism_human",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 45,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 660780,
+    "candidatesTokenCount": 3914,
+    "totalTokenCount": 666432,
+    "thoughtsTokenCount": 1738,
+    "cachedContentTokenCount": 524803
+   },
+   "estCostUSD": 0.334
+  },
+  {
+   "name": "r17",
+   "condition": "sys_market_socialism_human",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 49,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 799093,
+    "candidatesTokenCount": 5466,
+    "totalTokenCount": 806517,
+    "thoughtsTokenCount": 1958,
+    "cachedContentTokenCount": 646290
+   },
+   "estCostUSD": 0.393
+  },
+  {
+   "name": "r18",
+   "condition": "sys_market_socialism_human",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 46,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 698595,
+    "candidatesTokenCount": 4772,
+    "totalTokenCount": 704474,
+    "thoughtsTokenCount": 1107,
+    "cachedContentTokenCount": 549153
+   },
+   "estCostUSD": 0.359
+  },
+  {
+   "name": "r19",
+   "condition": "sys_central_planning_ai",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 51,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 826485,
+    "candidatesTokenCount": 5380,
+    "totalTokenCount": 832607,
+    "thoughtsTokenCount": 742,
+    "cachedContentTokenCount": 673234
+   },
+   "estCostUSD": 0.386
+  },
+  {
+   "name": "r20",
+   "condition": "sys_central_planning_ai",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 55,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 905499,
+    "candidatesTokenCount": 4023,
+    "totalTokenCount": 910132,
+    "thoughtsTokenCount": 610,
+    "cachedContentTokenCount": 741703
+   },
+   "estCostUSD": 0.399
+  },
+  {
+   "name": "r21",
+   "condition": "sys_central_planning_ai",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 53,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 845234,
+    "candidatesTokenCount": 3521,
+    "totalTokenCount": 849985,
+    "thoughtsTokenCount": 1230,
+    "cachedContentTokenCount": 680956
+   },
+   "estCostUSD": 0.391
+  },
+  {
+   "name": "r22",
+   "condition": "sys_central_planning_human",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 51,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 823691,
+    "candidatesTokenCount": 5908,
+    "totalTokenCount": 831285,
+    "thoughtsTokenCount": 1686,
+    "cachedContentTokenCount": 666058
+   },
+   "estCostUSD": 0.405
+  },
+  {
+   "name": "r23",
+   "condition": "sys_central_planning_human",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 49,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 739268,
+    "candidatesTokenCount": 4434,
+    "totalTokenCount": 745127,
+    "thoughtsTokenCount": 1425,
+    "cachedContentTokenCount": 585081
+   },
+   "estCostUSD": 0.372
+  },
+  {
+   "name": "r24",
+   "condition": "sys_central_planning_human",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 46,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 666172,
+    "candidatesTokenCount": 4345,
+    "totalTokenCount": 671821,
+    "thoughtsTokenCount": 1304,
+    "cachedContentTokenCount": 524369
+   },
+   "estCostUSD": 0.342
+  },
+  {
+   "name": "r25",
+   "condition": "sys_cooperative_ai",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 31,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 232060,
+    "candidatesTokenCount": 2853,
+    "totalTokenCount": 236105,
+    "thoughtsTokenCount": 1192,
+    "cachedContentTokenCount": 113674
+   },
+   "estCostUSD": 0.231
+  },
+  {
+   "name": "r26",
+   "condition": "sys_cooperative_ai",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 31,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 241180,
+    "candidatesTokenCount": 2803,
+    "totalTokenCount": 244833,
+    "thoughtsTokenCount": 850,
+    "cachedContentTokenCount": 127929
+   },
+   "estCostUSD": 0.222
+  },
+  {
+   "name": "r27",
+   "condition": "sys_cooperative_ai",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 31,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 237809,
+    "candidatesTokenCount": 2915,
+    "totalTokenCount": 241563,
+    "thoughtsTokenCount": 839,
+    "cachedContentTokenCount": 123183
+   },
+   "estCostUSD": 0.224
+  },
+  {
+   "name": "r28",
+   "condition": "sys_cooperative_human",
+   "seed": 11,
+   "status": "ended",
+   "decisions": 31,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 236803,
+    "candidatesTokenCount": 3600,
+    "totalTokenCount": 241318,
+    "thoughtsTokenCount": 915,
+    "cachedContentTokenCount": 122673
+   },
+   "estCostUSD": 0.23
+  },
+  {
+   "name": "r29",
+   "condition": "sys_cooperative_human",
+   "seed": 12,
+   "status": "ended",
+   "decisions": 31,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 240771,
+    "candidatesTokenCount": 3382,
+    "totalTokenCount": 245139,
+    "thoughtsTokenCount": 986,
+    "cachedContentTokenCount": 128926
+   },
+   "estCostUSD": 0.226
+  },
+  {
+   "name": "r30",
+   "condition": "sys_cooperative_human",
+   "seed": 13,
+   "status": "ended",
+   "decisions": 31,
+   "invalidReplies": 0,
+   "usage": {
+    "promptTokenCount": 242680,
+    "candidatesTokenCount": 3711,
+    "totalTokenCount": 247356,
+    "thoughtsTokenCount": 965,
+    "cachedContentTokenCount": 126439
+   },
+   "estCostUSD": 0.235
+  }
+ ],
+ "finished": "2026-11-13T20:13:34.916Z",
+ "estCostUSD": 10.16,
+ "prices": [
+  1.5,
+  0.15,
+  9
+ ]
+}

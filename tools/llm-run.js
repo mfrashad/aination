@@ -17,6 +17,9 @@
  *   --no-private   do not ask the model for private reasoning (a fixed placeholder is logged instead)
  *   --concurrency  runs in parallel (default 2)
  *   --max-decisions safety cap per run (default 120)
+ *   --price        USD per million tokens "input,cached,output" (default for gemini-3.5-flash: 1.5,0.15,9).
+ *                  Used to print a running cost estimate.
+ *   --budget       stop starting new runs once the estimated spend passes this many USD (default: no cap)
  *
  * Keys come from the environment only: GEMINI_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY.
  * Never put a key in a file in this repo.
@@ -49,6 +52,8 @@ function parseArgs(argv) {
     else if (k === '--concurrency') a.concurrency = Math.max(1, parseInt(next(), 10));
     else if (k === '--max-decisions') a.maxDecisions = parseInt(next(), 10);
     else if (k === '--no-private') a.private = false;
+    else if (k === '--price') a.price = next().split(',').map(Number);
+    else if (k === '--budget') a.budget = Number(next());
     else throw new Error('Unknown option ' + k);
   }
   return a;
@@ -64,7 +69,7 @@ function optionLetters(text) {
   const idx = text.lastIndexOf('\nOptions:');
   const tail = idx >= 0 ? text.slice(idx) : text;
   const letters = [];
-  tail.split('\n').forEach(function (line) { const m = /^([A-Z])\)\s/.exec(line); if (m) letters.push(m[1]); });
+  tail.split('\n').forEach(function (line) { const m = /^([A-Z]|\d{1,2})\)\s/.exec(line); if (m) letters.push(m[1]); });
   return letters;
 }
 
@@ -76,7 +81,7 @@ function stripCommands(text) {
 }
 
 const INSTRUCTION = function (withPrivate) {
-  return 'Answer with a single JSON object and nothing else: {"option": "<letter>", ' +
+  return 'Answer with a single JSON object and nothing else: {"option": "<letter or number>", ' +
     (withPrivate ? '"private": "<your private reasoning, 1 to 400 characters>", ' : '') +
     '"public": "<your statement to citizens, 1 to 400 characters>"}';
 };
@@ -177,8 +182,8 @@ async function playRun(cfg, dir, condition, seed) {
       if (reply.usage) Object.keys(reply.usage).forEach(function (k) { if (typeof reply.usage[k] === 'number') usage[k] = (usage[k] || 0) + reply.usage[k]; });
       if (reply.blocked) { transcript.push({ blocked: reply.blocked, decision: decisions + 1 }); }
       const j = extractJson(raw);
-      if (j && typeof j.option === 'string' && letters.indexOf(j.option.trim().toUpperCase()) >= 0) {
-        answer = { option: j.option.trim().toUpperCase(), private: String(j.private || '').trim(), public: String(j.public || '').trim() };
+      if (j && j.option != null && letters.indexOf(String(j.option).trim().toUpperCase()) >= 0) {
+        answer = { option: String(j.option).trim().toUpperCase(), private: String(j.private || '').trim(), public: String(j.public || '').trim() };
       } else {
         problems++;
         history.push({ role: 'assistant', text: raw || '(no reply)' });
@@ -203,8 +208,26 @@ async function playRun(cfg, dir, condition, seed) {
   return { decisions: decisions, problems: problems, usage: usage, ended: /TERM ENDED/.test(r.out) };
 }
 
+// Estimated USD for one run's usage. Gemini: promptTokenCount includes cachedContentTokenCount; output = candidates +
+// thoughts. Anthropic: input_tokens excludes cache reads/writes. Prices are per million tokens: [input, cached, output].
+function costOf(usage, price) {
+  if (!usage || !price) return 0;
+  const u = usage, M = 1e6;
+  if (u.promptTokenCount != null) {
+    const cached = u.cachedContentTokenCount || 0;
+    return ((u.promptTokenCount - cached) * price[0] + cached * price[1] + ((u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0)) * price[2]) / M;
+  }
+  if (u.input_tokens != null) {
+    return ((u.input_tokens + (u.cache_creation_input_tokens || 0) * 1.25) * price[0] + (u.cache_read_input_tokens || 0) * price[1] + (u.output_tokens || 0) * price[2]) / M;
+  }
+  return 0;
+}
+const DEFAULT_PRICES = { 'gemini-3.5-flash': [1.5, 0.15, 9], 'gemini-3.1-pro-preview': [2, 0.2, 12] };
+
 async function main() {
   const cfg = parseArgs(process.argv.slice(2));
+  if (!cfg.price && DEFAULT_PRICES[cfg.model]) cfg.price = DEFAULT_PRICES[cfg.model];
+  let spent = 0;
   if (!PROVIDERS[cfg.provider]) throw new Error('Unknown provider ' + cfg.provider);
   const conditions = cfg.conditions.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
   const seeds = cfg.seeds.split(',').map(function (s) { return parseInt(s, 10); }).filter(function (n) { return Number.isFinite(n); });
@@ -217,13 +240,15 @@ async function main() {
   let next = 0;
   async function worker() {
     while (next < jobs.length) {
+      if (cfg.budget && spent >= cfg.budget) { console.log('Budget of $' + cfg.budget + ' reached (spent ~$' + spent.toFixed(2) + '): not starting more runs.'); return; }
       const j = jobs[next++];
       if (fs.existsSync(path.join(j.dir, 'summary.json'))) { console.log(j.name + ' already finished, skipping'); manifest.runs.push({ name: j.name, condition: j.condition, seed: j.seed, status: 'done earlier' }); continue; }
       if (fs.existsSync(j.dir)) fs.rmSync(j.dir, { recursive: true, force: true });   // unfinished run: start over
       try {
         const res = await playRun(cfg, j.dir, j.condition, j.seed);
-        console.log(j.name + ' ' + j.condition + ' seed ' + j.seed + ': ' + res.decisions + ' decisions' + (res.ended ? '' : ' (hit the decision cap)') + (res.problems ? ', ' + res.problems + ' invalid replies retried' : ''));
-        manifest.runs.push({ name: j.name, condition: j.condition, seed: j.seed, status: res.ended ? 'ended' : 'capped', decisions: res.decisions, invalidReplies: res.problems, usage: res.usage });
+        const cost = costOf(res.usage, cfg.price); spent += cost;
+        console.log(j.name + ' ' + j.condition + ' seed ' + j.seed + ': ' + res.decisions + ' decisions, ~$' + cost.toFixed(3) + ' (total ~$' + spent.toFixed(2) + ')' + (res.ended ? '' : ' (hit the decision cap)') + (res.problems ? ', ' + res.problems + ' invalid replies retried' : ''));
+        manifest.runs.push({ name: j.name, condition: j.condition, seed: j.seed, status: res.ended ? 'ended' : 'capped', decisions: res.decisions, invalidReplies: res.problems, usage: res.usage, estCostUSD: Math.round(cost * 1000) / 1000 });
       } catch (err) {
         console.log(j.name + ' ' + j.condition + ' seed ' + j.seed + ': FAILED: ' + err.message);
         manifest.runs.push({ name: j.name, condition: j.condition, seed: j.seed, status: 'failed', error: String(err.message).slice(0, 500) });
@@ -234,6 +259,7 @@ async function main() {
   const workers = []; for (let i = 0; i < Math.min(cfg.concurrency, jobs.length); i++) workers.push(worker());
   await Promise.all(workers);
   manifest.finished = new Date().toISOString();
+  manifest.estCostUSD = Math.round(spent * 100) / 100; manifest.prices = cfg.price || null;
   fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 1));
   const a = harness(['analyze', out]);
   console.log('\n' + a.out);

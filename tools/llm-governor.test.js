@@ -54,7 +54,7 @@ function play(cond, seed, picker, texts) {
   return { run: run, log: log, outcomes: outcomes, W: H.restoreWorld(run), role: H.roleBriefing(run) };
 }
 function n1(r) { return r.W.state.nations[0]; }
-var CONDS = Object.keys(COND.CONDITIONS);
+var CONDS = COND.PILOT_IDS;   // the economic-systems conditions are checked separately below
 var CACHE = {};
 function cached(cond, seed, who) {
   var k = cond + '|' + seed + '|' + who;
