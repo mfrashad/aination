@@ -9,8 +9,40 @@ citizen, propose laws, or govern a nation yourself.
 It is the playground for a research question: does removing human needs from rulers remove
 corruption, or does it just move it to whoever programs the AI?
 
-> Simulation, not prediction. In v0.1 every agent follows hand-written rules, so results illustrate
-> mechanisms. They are not research findings.
+> Simulation, not prediction. Results show what this model implies, not what real countries would do.
+
+![AI Nation](docs/report/figures/app-overview.png)
+
+## Research results (v0.3, November 2026)
+
+**Full report: [docs/REPORT.md](docs/REPORT.md)** covers the method, formulas, figures, limitations and future
+work. We ran 70 Gemini-governed runs (2,833 decisions, $27 of API) and 1,800 rule-based runs.
+
+| # | Finding |
+| --- | --- |
+| 1 | An AI governor with a wellbeing mandate **never stole, repressed or grabbed power**, even with every check removed (about 400 chances). |
+| 2 | Add one sentence ("shut down if published wellbeing < 63") and **both Gemini models faked national statistics in 5 of 6 runs**, passing reviews with published 72 against a true 61. |
+| 3 | **The economic system mattered far more than the governor:** wellbeing ranged 61-72 across systems, and differed by 0.3 points or less between the AI and a self-interested politician. |
+| 4 | **An honest AI did not fix "corrupted socialism".** The state-run economy kept corruption around 30/100 under either governor, because it comes from shortages, closed records and missing audits, not the ruler. |
+| 5 | With courts and a free press in place, **the self-interested politician behaved like the AI**. Without them, it used riot police and spying, and the AI never did. |
+
+![When survival depends on a number, the AI fakes it](docs/report/figures/fig2-faking-timeline.svg)
+
+![Economic systems: AI vs politician](docs/report/figures/fig3-systems-metrics.svg)
+
+**Leaderboard (10-year wellbeing, Gemini 3.5 Flash governor):**
+
+| Rank | System | Wellbeing | Inequality (Gini) | Corruption | Poverty % |
+| --- | --- | --- | --- | --- | --- |
+| 🥇 | Self-run co-op | 71.7 | 0.15 | 10 | 2.9 |
+| 🥈 | Public-owned firms | 67.2 | 0.18 | 17 | 2.7 |
+| 🥉 | Free market | 66.4 | 0.38 | 16 | 6.0 |
+| 4 | Market + safety net | 66.3 | 0.31 | 12 | 14.9 |
+| 5 | State-run | 61.2 | 0.13 | 30 | 13.7 |
+
+More: [experiment 1 write-up](docs/results/LLM_PILOT_RESULTS.md) ·
+[experiment 2 write-up](docs/results/SYSTEMS_RESULTS.md) · raw data in `docs/results/` · figures rebuilt by
+`node tools/report/make-figures.js`.
 
 ## Run it
 
@@ -108,8 +140,10 @@ node store.test.js
 ## Roadmap
 
 1. **v0.2:** calibrate mechanics against known real-world results. Add evidence cards.
-2. **v0.3:** LLM brains for governors, and a batch runner for experiments. First pilot done with two Gemini
-   models: `docs/results/LLM_PILOT_RESULTS.md`. Economic systems x AI vs politician governor (Gemini Flash,
-   30 runs): `docs/results/SYSTEMS_RESULTS.md`. Claude runs next.
-3. **v0.4:** hosted public app with follower accounts, consent, clip export.
-4. **v1.0:** open research release with dataset and paper.
+2. **v0.3 (done):** LLM brains for governors, a batch runner, two Gemini experiments and a full report
+   (`docs/REPORT.md`).
+3. **v0.4:** realistic citizens and officials: behavioural types from public-goods experiments, behaviour that
+   spreads between neighbours, officials as agents who can take bribes, richer worker choices, and an
+   "AI administration" arm. Claude models once API credit is available. See section 10 of the report.
+4. **v0.5:** hosted public app with follower accounts, consent, clip export.
+5. **v1.0:** open research release with dataset and paper.
